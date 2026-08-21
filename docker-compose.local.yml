@@ -1,0 +1,78 @@
+# Local development — all ports exposed, hot reload, envs loaded directly.
+# Start with: make dev  (wraps: docker compose -f docker-compose.local.yml up --build)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data_local:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ai-service:
+    build:
+      context: ./apps/ai-service
+      dockerfile: Dockerfile
+      target: dev
+    env_file: apps/ai-service/.env
+    ports:
+      - "${AI_SERVICE_PORT}:8000"
+    volumes:
+      - ./apps/ai-service:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: dev
+    env_file: apps/api/.env
+    ports:
+      - "${API_PORT}:4000"
+    volumes:
+      - ./apps/api:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ai-service:
+        condition: service_started
+    command: npm run dev
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      target: dev
+    ports:
+      - "${WEB_PORT}:3000"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - api
+    command: npm run dev
+
+  # Inngest Dev Server — local UI for inspecting event/job runs (ADR-005)
+  inngest:
+    image: inngest/inngest:latest
+    command: inngest dev -u http://api:4000/api/inngest
+    ports:
+      - "8288:8288"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data_local:

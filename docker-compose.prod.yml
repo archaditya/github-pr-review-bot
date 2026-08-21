@@ -1,0 +1,77 @@
+# Production — no host ports exposed except the reverse proxy (ADR-008).
+# Immutable images, no bind mounts, secrets via env_file pointing at deploy-time secret files.
+# Start with: make prod  (wraps: docker compose -f docker-compose.prod.yml up -d)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: ./secrets/postgres.env
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # No `ports:` — reachable only on the internal network
+
+  ai-service:
+    build:
+      context: ./apps/ai-service
+      dockerfile: Dockerfile
+      target: prod
+    restart: unless-stopped
+    env_file: ./secrets/ai-service.env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    # No `ports:` — reachable only from `api` on the internal network
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: prod
+    restart: unless-stopped
+    env_file: ./secrets/api.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    # No `ports:` — reachable only via nginx
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      target: prod
+    restart: unless-stopped
+    env_file: ./secrets/web.env
+    depends_on:
+      - api
+    # No `ports:` — reachable only via nginx
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - api
+      - web
+
+volumes:
+  postgres_data_prod:

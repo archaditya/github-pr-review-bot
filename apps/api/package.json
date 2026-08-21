@@ -1,0 +1,27 @@
+{
+  "name": "@archadi-pr-review/api",
+  "private": true,
+  "description": "Node/Express backend — auth, GitHub webhooks, review orchestration, persistence. See README.md.",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "db:migrate": "sequelize-cli db:migrate",
+    "db:seed": "sequelize-cli db:seed:all",
+    "test": "echo \"tests not yet implemented\" && exit 0"
+  },
+  "dependencies": {
+    "express": "^4.19.0",
+    "sequelize": "^6.37.0",
+    "pg": "^8.12.0",
+    "inngest": "^3.0.0",
+    "opossum": "^8.1.0",
+    "jsonwebtoken": "^9.0.0",
+    "zod": "^3.23.0",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0",
+    "sequelize-cli": "^6.6.0"
+  }
+}
