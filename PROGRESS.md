@@ -108,7 +108,16 @@ needs a real run before being trusted the way the earlier batch can be.
 
 | Item | Status | Notes |
 |---|---|---|
-| Everything | ⬜ | Only `README.md`, `Dockerfile`, and a stub `package.json` exist — no actual Next.js app code (`app/`, `components/`, `lib/`) has been written yet |
+| Config (Tailwind, TypeScript, Next, PostCSS, shadcn `components.json`) | ✅ | `output: 'standalone'` in `next.config.mjs`, matched by the rewritten Dockerfile |
+| Design tokens (`app/globals.css`) | ✅ | Dark-mode dev-tool palette — git-diff semantics, severity scale, Geist Sans/Mono |
+| shadcn-style UI primitives (`components/ui/`) | ✅ | Button, Card, Badge, Skeleton, Separator, Avatar — hand-authored, matches how shadcn actually ships (copied into the repo, not an npm package) |
+| API client, types, TanStack Query hooks, Zustand store | ✅ | `lib/api-client.ts` (axios), `types/api.ts` (mirrors `apps/api`'s models), `hooks/` (one per resource), `store/ui-store.ts` (UI-only state) |
+| Pages: login, repositories overview, repository detail, review job detail | ✅ | `app/login/`, `app/(dashboard)/` route group |
+| Signature component: `pipeline-stepper.tsx` | ✅ | Renders the real `ReviewJob` state machine, not decorative steps |
+| `npm install` + build + dev boot + lint | ✅ | **Actually run this session**: clean install (147 packages), `next build` passed (TypeScript type-check + all 5 routes compiled), `next lint` clean, and the dev server was booted and every route hit with curl — `/login` (200, "Continue with GitHub" present), `/` (200), `/repositories/[id]` (200), `/review-jobs/[id]` (200), `/nonexistent` (404) — no server-side render errors in the logs. Design tokens (`bg-background`, `font-sans`, dark theme) confirmed present in the actual rendered HTML. **Not verified**: real data from a running `apps/api` (no backend was up during this test) or a real browser/visual check — only server-rendered HTML and build output were inspected. |
+| `.eslintrc.json` (`next/core-web-vitals`) + `eslint`/`eslint-config-next` devDeps | ✅ | Added after `next lint` failed with no config — now clean |
+| Auth-gating on dashboard routes (currently no client-side redirect if `/auth/me` 401s beyond the axios interceptor) | 🟡 | The axios interceptor redirects to `/login` on any 401 response, but there's no server-side/middleware route guard yet — a signed-out user briefly sees the dashboard shell before the redirect fires |
+| Tests | ⬜ | None yet |
 
 ---
 
@@ -119,7 +128,7 @@ needs a real run before being trusted the way the earlier batch can be.
 | `docker-compose.local.yml` / `docker-compose.prod.yml` | ✅ | Written, matches ADR-008 |
 | `Makefile` (`make dev` / `make prod` / `make db-migrate` / `make db-seed`) | ✅ | |
 | `apps/api/Dockerfile`, `apps/ai-service/Dockerfile` | ✅ | Multi-stage dev/prod, healthchecks, non-root prod user |
-| `apps/web/Dockerfile` | ✅ | Written, unverified (no app code to build yet) |
+| `apps/web/Dockerfile` | ✅ | Rewritten for Next.js `standalone` output — matches `next.config.mjs`, unverified (no build has been run) |
 | `.github/workflows/*.yml` (CI) | ⬜ | Only a placeholder README — no actual pipeline yet |
 | Reverse proxy (nginx or otherwise) in front of `api`/`web` | ⬜ (out of scope) | Set up and managed separately, outside this repo — `api`/`web` expose their ports directly in `docker-compose.prod.yml` for it to route to (ADR-008) |
 | **Full stack boot via `make dev`** | ⬜ | Never run end-to-end in this session (no Docker daemon available in this sandbox) — first thing to try in a real environment |
@@ -135,3 +144,9 @@ needs a real run before being trusted the way the earlier batch can be.
 5. Register a GitHub OAuth App (for login — separate from the GitHub App itself, see
    `apps/api/.env.example`), run `npm install` to pick up `cookie-parser`, and exercise the
    `/auth/github/login` → `/auth/github/callback` round trip in a browser
+6. `apps/web`: run `npm run dev` yourself and click through it against a real `apps/api` +
+   Postgres — this session verified the build/lint/route-render mechanics but never saw real
+   repository/review-job data or a real browser
+7. Add a proper auth guard for `app/(dashboard)/` (middleware or a server-side check) — right
+   now an unauthenticated visit briefly renders the shell before the axios interceptor's
+   client-side redirect fires
