@@ -1,0 +1,107 @@
+import json
+import logging
+
+from openai import APIError, APITimeoutError, RateLimitError
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+
+from ..core.config import settings
+from ..core.openai_client import get_openai_client
+from ..schemas.review_request import ChangedFileContext, PullRequestMeta
+from ..schemas.review_response import ReviewResponse
+from ..schemas.finding import Finding
+from ..utils.diff_capping import cap_diff
+from .prompts import load_prompt
+from .schema_defs import REVIEW_FINDINGS_SCHEMA
+
+logger = logging.getLogger(__name__)
+
+SYSTEM_PROMPT = load_prompt("review_system.md")
+
+
+class ReviewGenerationError(Exception):
+    """Raised when the model call fails or its output can't be trusted, after retries.
+    Caught at the API layer (app/api/review.py) and mapped to a 502 — the circuit breaker
+    on the Node side (ADR-006) treats any non-2xx as a breaker-tracked failure."""
+
+
+def _build_user_message(
+    diff: str, usage_context: list[ChangedFileContext], pr: PullRequestMeta
+) -> str:
+    usage_block = (
+        "\n\n".join(
+            f"### {item.file} ({item.status or 'modified'})\n```diff\n{item.patch}\n```"
+            for item in usage_context
+        )
+        or "(no per-file context available)"
+    )
+
+    return (
+        f"Pull request: {pr.owner}/{pr.repo} #{pr.number}\n\n"
+        f"## Full diff\n```diff\n{diff}\n```\n\n"
+        f"## Per-file context\n{usage_block}"
+    )
+
+
+@retry(
+    reraise=True,
+    stop=stop_after_attempt(2),
+    wait=wait_exponential(multiplier=1, min=1, max=4),
+    retry=retry_if_exception_type((APITimeoutError, RateLimitError)),
+)
+async def _call_model(user_message: str) -> dict:
+    client = get_openai_client()
+
+    completion = await client.chat.completions.create(
+        model=settings.openai_model,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_message},
+        ],
+        response_format={"type": "json_schema", "json_schema": REVIEW_FINDINGS_SCHEMA},
+        temperature=0,
+    )
+
+    raw_content = completion.choices[0].message.content
+    return json.loads(raw_content)
+
+
+async def generate_review(
+    diff: str, usage_context: list[ChangedFileContext], pull_request: PullRequestMeta
+) -> ReviewResponse:
+    """
+    ReviewContext -> structured findings. Guardrails applied, in order:
+    1. Input capping (cap_diff) — bounds cost/latency/context-window risk
+    2. Prompt-injection resistance — system prompt instructs the model to treat diff
+       content strictly as data (defense is prompt-level; there's no code-level filter
+       that could catch this reliably, so this is a known best-effort mitigation)
+    3. Structured outputs (JSON schema, strict mode) — constrains shape at decode time
+    4. Pydantic validation — a second, independent check that output matches the contract
+       before it's ever returned to apps/api
+    5. Retry (openai timeouts / rate limits only, 2 attempts, exponential backoff) — never
+       retries on a schema-validation failure, since that's not a transient error
+    """
+    capped_diff, truncated = cap_diff(diff, settings.max_diff_tokens)
+    pr_label = f"{pull_request.owner}/{pull_request.repo}#{pull_request.number}"
+
+    if truncated:
+        logger.warning("diff truncated to fit max_diff_tokens", extra={"pr": pr_label})
+
+    user_message = _build_user_message(capped_diff, usage_context, pull_request)
+
+    try:
+        raw = await _call_model(user_message)
+    except (APIError, APITimeoutError, RateLimitError) as exc:
+        logger.error("openai call failed for %s: %s", pr_label, exc)
+        raise ReviewGenerationError("OpenAI call failed") from exc
+    except json.JSONDecodeError as exc:
+        logger.error("model returned non-JSON output for %s", pr_label)
+        raise ReviewGenerationError("Model output was not valid JSON") from exc
+
+    try:
+        findings = [Finding(**item) for item in raw.get("findings", [])]
+    except Exception as exc:  # pydantic.ValidationError or a malformed dict shape
+        logger.error("model output failed schema validation for %s: %s", pr_label, exc)
+        raise ReviewGenerationError("Model output failed schema validation") from exc
+
+    logger.info("generated %d findings for %s", len(findings), pr_label)
+    return ReviewResponse(findings=findings, truncated=truncated)

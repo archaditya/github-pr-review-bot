@@ -1,11 +1,10 @@
 # app/api/ — FastAPI routers
 
-Route wiring only — parses the request against a `schemas/` model, calls one `services/`
-function, returns its result. No prompt logic, no OpenAI calls directly from a router.
+Route wiring only — parses the request against a `schemas/` model (FastAPI + Pydantic reject
+a malformed body with a 422 automatically), calls one `agents/`/`services/` function, returns
+its result. No prompt logic, no OpenAI calls directly from a router.
 
-Planned:
-- `review.py` — `POST /review/generate`, the main review-generation endpoint
-- `conversation.py` — `POST /conversation/reply`, generates a reply for a follow-up comment on
-  an existing review (ADR-009); still fully stateless — all context (original findings, diff,
-  message history) is passed in per-call, nothing is looked up server-side
-- `health.py` — `GET /health`, used by Docker healthchecks
+- `health.py` — `GET /health`
+- `review.py` — `POST /review/generate`; catches `ReviewGenerationError` and maps it to a 502
+  (so apps/api's circuit breaker, ADR-006, counts it as a real failure)
+- `conversation.py` — `POST /conversation/reply`; same 502 mapping via `ConversationGenerationError`

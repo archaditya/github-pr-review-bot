@@ -8,12 +8,20 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # --- dev: source bind-mounted by compose, uvicorn --reload ---
 FROM base AS dev
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 COPY . .
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
-# --- prod: no reload, no bind mounts, minimal image ---
+# --- prod: no reload, no bind mounts, non-root user, minimal image ---
 FROM base AS prod
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --shell /bin/bash appuser
 COPY . .
+USER appuser
 EXPOSE 8000
+HEALTHCHECK --interval=15s --timeout=5s --retries=5 \
+  CMD curl -f http://localhost:8000/health || exit 1
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

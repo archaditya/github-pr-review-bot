@@ -1,7 +1,8 @@
 # app/services/
 
-Business logic that sits between the raw agent output and the final API response: dedup
-overlapping findings, map model severity language to the fixed `ReviewComment` severity enum,
-and enforce the output actually matches what `api` expects before returning it.
+Pre/post-processing around the agents — business logic that isn't "call the model" itself.
 
-Planned: `review_service.py`.
+- `review_service.py` — `postprocess_findings()`: dedupes near-identical findings, hard-caps
+  the count returned (`settings.max_findings`) regardless of what the model produced
+- `conversation_service.py` — `cap_history()`: bounds how much prior conversation is sent to
+  the model on each reply (`settings.max_conversation_history_messages`)
