@@ -4,9 +4,13 @@ HTTP client to `apps/ai-service`, wrapped in a circuit breaker + retry + timeout
 This is the *only* place `api` calls the AI service — never called ad-hoc from a service method
 without going through this client.
 
-Planned files:
-- `client.js` — the HTTP call (base URL, timeout) — no business logic
-- `circuit-breaker.js` — per-endpoint breaker config (e.g. `opossum`), independent breakers per
-  capability so one failing endpoint doesn't trip others
-- `errors.js` — `AiServiceUnavailableError`, `AiServiceTimeoutError` — mapped to a `ReviewJob`
-  `RETRYING`/`FAILED` state by the calling service, never leaked as a raw HTTP error
+- `client.js` — the raw HTTP call (base URL, timeout via AbortController) — no resilience logic
+- `circuit-breaker.js` — wraps `client.js` with `opossum`, one breaker per endpoint so a failing
+  capability doesn't trip breakers for unrelated ones; on open/timeout, throws
+  `AiServiceUnavailableError` (`src/utils/errors.js`) rather than leaking a raw HTTP error
+- `index.js` — public entrypoint (`generateReview`, `generateConversationReply`), the only path
+  `services/` should import from this folder
+
+Errors: reuses `AiServiceUnavailableError` from `src/utils/errors.js` rather than duplicating
+an error type here — the calling service catches it and maps it to a `ReviewJob`
+`RETRYING`/`FAILED` transition.
