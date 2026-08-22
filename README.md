@@ -110,7 +110,7 @@ Full step-by-step troubleshooting (webhook not arriving, jobs stuck, etc.) is in
 
 ```bash
 make dev          # start the full local stack (hot reload, all ports exposed)
-make prod         # start the prod-configured stack (nginx-only exposure, no bind mounts)
+make prod          # start the prod-configured stack (api/web ports exposed directly, no bind mounts)
 make down         # stop the local stack
 make logs         # tail logs from all local services
 make db-migrate   # run pending Sequelize migrations (apps/api)
@@ -136,7 +136,6 @@ archadi-pr-review/
 │           ├── api|core|agents|services|schemas|utils/
 ├── infra/
 │   ├── docker/{local,prod}/
-│   └── nginx/                # prod reverse proxy config
 ├── docker-compose.local.yml
 ├── docker-compose.prod.yml
 └── Makefile

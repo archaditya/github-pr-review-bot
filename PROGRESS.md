@@ -108,8 +108,8 @@ items above for what specifically still needs a real run.
 | `Makefile` (`make dev` / `make prod` / `make db-migrate` / `make db-seed`) | ✅ | |
 | `apps/api/Dockerfile`, `apps/ai-service/Dockerfile` | ✅ | Multi-stage dev/prod, healthchecks, non-root prod user |
 | `apps/web/Dockerfile` | ✅ | Written, unverified (no app code to build yet) |
-| **`infra/nginx/nginx.conf`** | ⬜ | `docker-compose.prod.yml` references this path — file doesn't exist yet, only the folder README. **Prod compose will fail to start nginx until this is written.** |
 | `.github/workflows/*.yml` (CI) | ⬜ | Only a placeholder README — no actual pipeline yet |
+| Reverse proxy (nginx or otherwise) in front of `api`/`web` | ⬜ (out of scope) | Set up and managed separately, outside this repo — `api`/`web` expose their ports directly in `docker-compose.prod.yml` for it to route to (ADR-008) |
 | **Full stack boot via `make dev`** | ⬜ | Never run end-to-end in this session (no Docker daemon available in this sandbox) — first thing to try in a real environment |
 
 ---
@@ -120,5 +120,4 @@ items above for what specifically still needs a real run.
 2. `make db-migrate && make db-seed` — do all 8 migrations apply cleanly against real Postgres?
 3. `apps/ai-service`: `pip install -r requirements.txt` + a manual `POST /review/generate` call with a small fake diff and a real `OPENAI_API_KEY` — confirms the structured-outputs call shape actually works against the live OpenAI API (this has only been reasoned through, never executed)
 4. Register a real GitHub App per the root README, point its webhook at a tunnel, open a test PR — confirms the webhook → Inngest → review → comment loop end-to-end
-5. Write `infra/nginx/nginx.conf` before ever trying `make prod`
-6. Wire up `auth.service.js` + `/auth` routes — nothing on `apps/web` can authenticate a user without this
+5. Wire up `auth.service.js` + `/auth` routes — nothing on `apps/web` can authenticate a user without this
