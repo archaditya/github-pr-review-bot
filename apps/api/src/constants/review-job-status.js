@@ -1,0 +1,75 @@
+/**
+ * ReviewJob state machine — see docs/architecture/data-model.md.
+ *
+ *   PENDING → FETCHING_DIFF → RESOLVING_USAGES → GENERATING_REVIEW → POSTING_COMMENTS → COMPLETED
+ *      │             │                │                  │                  │
+ *      └─────────────┴────────────────┴──────────────────┴──────────────────┴──→ FAILED
+ *                                                                            ↘ RETRYING
+ *
+ * Used by:
+ *  - models/review-job.model.js — guards every status write against this map
+ *  - src/jobs/review-pipeline.job.js — each Inngest step transitions to the next state
+ */
+const REVIEW_JOB_STATUSES = Object.freeze({
+  PENDING: 'PENDING',
+  FETCHING_DIFF: 'FETCHING_DIFF',
+  RESOLVING_USAGES: 'RESOLVING_USAGES',
+  GENERATING_REVIEW: 'GENERATING_REVIEW',
+  POSTING_COMMENTS: 'POSTING_COMMENTS',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  RETRYING: 'RETRYING',
+});
+
+const TERMINAL_STATUSES = [REVIEW_JOB_STATUSES.COMPLETED, REVIEW_JOB_STATUSES.FAILED];
+
+// From each status, the set of statuses it's legal to move to next.
+const VALID_TRANSITIONS = Object.freeze({
+  [REVIEW_JOB_STATUSES.PENDING]: [
+    REVIEW_JOB_STATUSES.FETCHING_DIFF,
+    REVIEW_JOB_STATUSES.FAILED,
+  ],
+  [REVIEW_JOB_STATUSES.FETCHING_DIFF]: [
+    REVIEW_JOB_STATUSES.RESOLVING_USAGES,
+    REVIEW_JOB_STATUSES.RETRYING,
+    REVIEW_JOB_STATUSES.FAILED,
+  ],
+  [REVIEW_JOB_STATUSES.RESOLVING_USAGES]: [
+    REVIEW_JOB_STATUSES.GENERATING_REVIEW,
+    REVIEW_JOB_STATUSES.RETRYING,
+    REVIEW_JOB_STATUSES.FAILED,
+  ],
+  [REVIEW_JOB_STATUSES.GENERATING_REVIEW]: [
+    REVIEW_JOB_STATUSES.POSTING_COMMENTS,
+    REVIEW_JOB_STATUSES.RETRYING,
+    REVIEW_JOB_STATUSES.FAILED,
+  ],
+  [REVIEW_JOB_STATUSES.POSTING_COMMENTS]: [
+    REVIEW_JOB_STATUSES.COMPLETED,
+    REVIEW_JOB_STATUSES.RETRYING,
+    REVIEW_JOB_STATUSES.FAILED,
+  ],
+  // RETRYING re-enters the pipeline at whichever step is retried — allow it to move to
+  // any non-terminal step, Inngest's own step tracking determines exactly which one.
+  [REVIEW_JOB_STATUSES.RETRYING]: [
+    REVIEW_JOB_STATUSES.FETCHING_DIFF,
+    REVIEW_JOB_STATUSES.RESOLVING_USAGES,
+    REVIEW_JOB_STATUSES.GENERATING_REVIEW,
+    REVIEW_JOB_STATUSES.POSTING_COMMENTS,
+    REVIEW_JOB_STATUSES.FAILED,
+  ],
+  [REVIEW_JOB_STATUSES.COMPLETED]: [],
+  [REVIEW_JOB_STATUSES.FAILED]: [],
+});
+
+function isValidTransition(from, to) {
+  if (from === to) return true; // idempotent no-op writes are allowed
+  return VALID_TRANSITIONS[from]?.includes(to) ?? false;
+}
+
+module.exports = {
+  REVIEW_JOB_STATUSES,
+  TERMINAL_STATUSES,
+  VALID_TRANSITIONS,
+  isValidTransition,
+};

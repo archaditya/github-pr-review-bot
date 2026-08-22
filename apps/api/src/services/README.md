@@ -7,12 +7,11 @@ one or more repositories and/or integrations.
 Never touches `req`/`res`. Never writes raw SQL (delegates to a repository method — add a new
 repository method rather than reaching around it).
 
-Planned files:
-- `auth.service.js` — login, session/JWT issuance
-- `webhook.service.js` — verify + persist inbound GitHub events, emit Inngest events
-  (`pr/review.requested`, `pr/comment.received`)
-- `review.service.js` — the review pipeline's business logic (called from `jobs/` Inngest steps)
-- `conversation.service.js` — owns the "is this comment meant for the bot" trigger rule
-  (**`@mention`-only for MVP** — ADR-009) and builds reply context from `ConversationMessage`
-  history
-- `repository.service.js` — repo connect/disconnect, per-repo settings
+- `webhook.service.js` — verifies + persists inbound GitHub events (`pull_request`,
+  `issue_comment`), emits Inngest events (`pr/review.requested`, `pr/comment.received`)
+- `review.service.js` — the review pipeline's business logic (diff fetch, usage resolution,
+  findings generation, summary posting), called from `jobs/review-pipeline.job.js`'s steps
+- `conversation.service.js` — owns the `@mention`-only trigger rule (ADR-009, D4) for
+  detecting whether a PR comment is directed at the bot
+- `auth.service.js` *(planned)* — login, session/JWT issuance
+- `repository.service.js` *(planned)* — repo connect/disconnect, per-repo settings
