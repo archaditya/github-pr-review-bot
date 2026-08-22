@@ -15,6 +15,7 @@ const config = {
   port: env.PORT,
   logLevel: env.LOG_LEVEL,
   corsOrigin: env.CORS_ORIGIN,
+  webAppUrl: env.WEB_APP_URL,
 
   database: {
     url: env.DATABASE_URL,
@@ -31,6 +32,7 @@ const config = {
     webhookSecret: env.GITHUB_WEBHOOK_SECRET,
     oauthClientId: env.GITHUB_OAUTH_CLIENT_ID,
     oauthClientSecret: env.GITHUB_OAUTH_CLIENT_SECRET,
+    oauthRedirectUri: env.GITHUB_OAUTH_REDIRECT_URI,
     botHandle: env.GITHUB_BOT_HANDLE,
   },
 

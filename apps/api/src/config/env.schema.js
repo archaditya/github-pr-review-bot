@@ -18,7 +18,10 @@ const envSchema = z.object({
   GITHUB_WEBHOOK_SECRET: z.string().optional(),
   GITHUB_OAUTH_CLIENT_ID: z.string().optional(),
   GITHUB_OAUTH_CLIENT_SECRET: z.string().optional(),
+  GITHUB_OAUTH_REDIRECT_URI: z.string().url().default('http://localhost:4000/auth/github/callback'),
   GITHUB_BOT_HANDLE: z.string().default('archadi-bot'),
+
+  WEB_APP_URL: z.string().url().default('http://localhost:3000'),
 
   AI_SERVICE_BASE_URL: z.string().url().default('http://ai-service:8000'),
   AI_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),

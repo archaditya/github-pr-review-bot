@@ -6,5 +6,8 @@ Parses the HTTP request, calls exactly one `services/` method, shapes the HTTP r
 No DB queries, no direct external API calls, no multi-step orchestration — that belongs in
 a service. A controller method should read as: validate input → call service → return response.
 
-Planned files: `auth.controller.js`, `webhooks.controller.js`, `repositories.controller.js`,
-`review-jobs.controller.js`.
+- `health.controller.js`, `webhooks.controller.js`
+- `auth.controller.js` — owns the OAuth state cookie (CSRF) and session cookie, delegates the
+  actual token exchange to `services/auth.service.js`
+- `repositories.controller.js`
+- `review-jobs.controller.js`

@@ -2,6 +2,7 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const compression = require('compression');
+const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const { serve } = require('inngest/express');
 
@@ -20,6 +21,7 @@ app.set('trust proxy', config.isProduction ? 1 : 0);
 app.use(helmet());
 app.use(cors({ origin: config.corsOrigin, credentials: true }));
 app.use(compression());
+app.use(cookieParser());
 app.use(requestLogger);
 
 // Global rate limit — a coarse safety net; per-route limits (e.g. tighter on auth) can be
