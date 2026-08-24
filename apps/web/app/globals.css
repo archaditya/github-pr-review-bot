@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Base palette — a cool near-black, not pure black; deliberately not the
+       warm-cream/terracotta or acid-green defaults. Ties to the product's subject
+       (code, diffs, terminals) rather than generic SaaS branding. */
+    --background: 216 24% 6%;
+    --foreground: 210 20% 92%;
+
+    --card: 216 20% 9%;
+    --card-foreground: 210 20% 92%;
+
+    --border: 216 14% 17%;
+    --muted: 216 14% 13%;
+    --muted-foreground: 216 10% 60%;
+
+    /* Primary accent — a blue-violet, distinct from both the terracotta and
+       acid-green AI-generated defaults. Used sparingly: links, active states,
+       the current pipeline step. */
+    --primary: 243 90% 71%;
+    --primary-foreground: 216 24% 6%;
+
+    --accent: 216 14% 13%;
+    --accent-foreground: 210 20% 92%;
+
+    --destructive: 4 84% 62%;
+    --destructive-foreground: 210 20% 96%;
+
+    --ring: 243 90% 71%;
+
+    /* Severity scale — used by SeverityBadge, FindingsList. Ordered by urgency. */
+    --severity-critical: 4 84% 62%;
+    --severity-high: 27 92% 58%;
+    --severity-medium: 43 92% 55%;
+    --severity-low: 213 55% 62%;
+    --severity-info: 216 10% 55%;
+
+    /* git-diff-inspired semantics — reused for "review clean" / "step passed". */
+    --diff-add: 137 50% 48%;
+    --diff-remove: 4 84% 62%;
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  ::selection {
+    @apply bg-primary/30;
+  }
+}

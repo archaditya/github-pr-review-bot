@@ -55,24 +55,36 @@ and structure; this file tracks actual implementation status.
 | Inngest mounted at `/api/inngest` | ✅ | `src/app.js`, via `inngest/express` |
 | **Inngest `onFailure` → transition ReviewJob to FAILED after retries exhaust** | ⬜ | Not wired yet — currently a pipeline that exhausts all retries throws and the job stays at whatever status it last reached, rather than being explicitly marked `FAILED`. Needs verifying against the installed Inngest SDK version's `onFailure` handler shape before wiring. |
 
+### User-facing API (auth, repositories, review jobs)
+| Item | Status | Notes |
+|---|---|---|
+| `auth.service.js` + `auth.controller.js` + `/auth` routes | ✅ | GitHub OAuth login (separate from the App's installation auth — ADR-007), CSRF state via short-lived cookie (double-submit pattern, no session store needed), session JWT issued as an httpOnly cookie. `requireAuth` now accepts either the cookie or a `Bearer` header. |
+| `repository.service.js` + `repositories.controller.js` + routes | ✅ | List/get/toggle `isActive`, every method ownership-scoped to the requesting user's installations |
+| `review-job.service.js` + `review-jobs.controller.js` + routes | ✅ | Cursor-paginated list (by `createdAt`, not `id` — UUIDs aren't sequential) + full job detail (summary comment, conversation thread, JobEvent audit trail) |
+| `validators/repository.validator.js`, `validators/review-job.validator.js` | ✅ | zod schemas, wired via `middlewares/validate.middleware.js` |
+| `cookie-parser` added to `package.json` | 🟡 | Dependency added, but **`package-lock.json` was not regenerated** (no `npm install` run this session per instruction) — run `npm install` before first boot to pick it up |
+| **Any of the above actually exercised (login round-trip, cookie handling, cursor pagination)** | ⬜ | Written but not run — same caveat as the rest of this batch, see note below |
+
 ### Not started
 | Item | Status | Notes |
 |---|---|---|
-| `auth.service.js` (user login/JWT issuance) + `/auth` routes | ⬜ | Needed for the `web` dashboard to authenticate anyone |
-| `repository.service.js` (connect/disconnect repos, per-repo settings) + routes | ⬜ | |
-| `/review-jobs` routes (dashboard reads job history/status) | ⬜ | |
-| `validators/` — zod schemas for any of the above | ⬜ | Folder exists, no schemas written yet (nothing to validate until the routes above exist) |
 | Automated tests | ⬜ | `npm test` is currently a no-op placeholder |
 | `.eslintrc` | ⬜ | `package.json` has a `lint` script but no config file yet |
+| Rate-limiting specifically on `/auth/*` | ⬜ | Only the global rate limiter (`app.js`) currently applies — auth endpoints (especially the OAuth callback) are a reasonable candidate for a tighter, dedicated limit |
 
 ### Verified (real, not just written)
 Everything marked ✅ above under Foundation / GitHub integration / AI service client / Business
-logic was **boot-tested** in an earlier session: `npm install` succeeded clean, all modules
-loaded at require-time without errors, the Express server was started and exercised — health
-endpoints, webhook signature accept/reject, event-type and action-level filtering all behaved
-exactly as expected (no live GitHub/OpenAI calls were made, and no Postgres was available in
-that sandbox). Everything written *since* has not been re-verified the same way — see the ⬜
-items above for what specifically still needs a real run.
+logic (the original batch) was **boot-tested** in an earlier session: `npm install` succeeded
+clean, all modules loaded at require-time without errors, the Express server was started and
+exercised — health endpoints, webhook signature accept/reject, event-type and action-level
+filtering all behaved exactly as expected (no live GitHub/OpenAI calls were made, and no
+Postgres was available in that sandbox).
+
+The **auth/repositories/review-jobs batch above, and everything in `apps/ai-service`, have not
+been run at all** — written and internally consistent (checked by re-reading, not by
+executing), but not boot-tested, not `npm install`-ed with the new `cookie-parser` dependency,
+and not exercised against a real request. Treat this batch as a first-pass implementation that
+needs a real run before being trusted the way the earlier batch can be.
 
 ---
 
@@ -96,7 +108,16 @@ items above for what specifically still needs a real run.
 
 | Item | Status | Notes |
 |---|---|---|
-| Everything | ⬜ | Only `README.md`, `Dockerfile`, and a stub `package.json` exist — no actual Next.js app code (`app/`, `components/`, `lib/`) has been written yet |
+| Config (Tailwind, TypeScript, Next, PostCSS, shadcn `components.json`) | ✅ | `output: 'standalone'` in `next.config.mjs`, matched by the rewritten Dockerfile |
+| Design tokens (`app/globals.css`) | ✅ | Dark-mode dev-tool palette — git-diff semantics, severity scale, Geist Sans/Mono |
+| shadcn-style UI primitives (`components/ui/`) | ✅ | Button, Card, Badge, Skeleton, Separator, Avatar — hand-authored, matches how shadcn actually ships (copied into the repo, not an npm package) |
+| API client, types, TanStack Query hooks, Zustand store | ✅ | `lib/api-client.ts` (axios), `types/api.ts` (mirrors `apps/api`'s models), `hooks/` (one per resource), `store/ui-store.ts` (UI-only state) |
+| Pages: login, repositories overview, repository detail, review job detail | ✅ | `app/login/`, `app/(dashboard)/` route group |
+| Signature component: `pipeline-stepper.tsx` | ✅ | Renders the real `ReviewJob` state machine, not decorative steps |
+| `npm install` + build + dev boot + lint | ✅ | **Actually run this session**: clean install (147 packages), `next build` passed (TypeScript type-check + all 5 routes compiled), `next lint` clean, and the dev server was booted and every route hit with curl — `/login` (200, "Continue with GitHub" present), `/` (200), `/repositories/[id]` (200), `/review-jobs/[id]` (200), `/nonexistent` (404) — no server-side render errors in the logs. Design tokens (`bg-background`, `font-sans`, dark theme) confirmed present in the actual rendered HTML. **Not verified**: real data from a running `apps/api` (no backend was up during this test) or a real browser/visual check — only server-rendered HTML and build output were inspected. |
+| `.eslintrc.json` (`next/core-web-vitals`) + `eslint`/`eslint-config-next` devDeps | ✅ | Added after `next lint` failed with no config — now clean |
+| Auth-gating on dashboard routes (currently no client-side redirect if `/auth/me` 401s beyond the axios interceptor) | 🟡 | The axios interceptor redirects to `/login` on any 401 response, but there's no server-side/middleware route guard yet — a signed-out user briefly sees the dashboard shell before the redirect fires |
+| Tests | ⬜ | None yet |
 
 ---
 
@@ -107,9 +128,9 @@ items above for what specifically still needs a real run.
 | `docker-compose.local.yml` / `docker-compose.prod.yml` | ✅ | Written, matches ADR-008 |
 | `Makefile` (`make dev` / `make prod` / `make db-migrate` / `make db-seed`) | ✅ | |
 | `apps/api/Dockerfile`, `apps/ai-service/Dockerfile` | ✅ | Multi-stage dev/prod, healthchecks, non-root prod user |
-| `apps/web/Dockerfile` | ✅ | Written, unverified (no app code to build yet) |
-| **`infra/nginx/nginx.conf`** | ⬜ | `docker-compose.prod.yml` references this path — file doesn't exist yet, only the folder README. **Prod compose will fail to start nginx until this is written.** |
+| `apps/web/Dockerfile` | ✅ | Rewritten for Next.js `standalone` output — matches `next.config.mjs`, unverified (no build has been run) |
 | `.github/workflows/*.yml` (CI) | ⬜ | Only a placeholder README — no actual pipeline yet |
+| Reverse proxy (nginx or otherwise) in front of `api`/`web` | ⬜ (out of scope) | Set up and managed separately, outside this repo — `api`/`web` expose their ports directly in `docker-compose.prod.yml` for it to route to (ADR-008) |
 | **Full stack boot via `make dev`** | ⬜ | Never run end-to-end in this session (no Docker daemon available in this sandbox) — first thing to try in a real environment |
 
 ---
@@ -120,5 +141,12 @@ items above for what specifically still needs a real run.
 2. `make db-migrate && make db-seed` — do all 8 migrations apply cleanly against real Postgres?
 3. `apps/ai-service`: `pip install -r requirements.txt` + a manual `POST /review/generate` call with a small fake diff and a real `OPENAI_API_KEY` — confirms the structured-outputs call shape actually works against the live OpenAI API (this has only been reasoned through, never executed)
 4. Register a real GitHub App per the root README, point its webhook at a tunnel, open a test PR — confirms the webhook → Inngest → review → comment loop end-to-end
-5. Write `infra/nginx/nginx.conf` before ever trying `make prod`
-6. Wire up `auth.service.js` + `/auth` routes — nothing on `apps/web` can authenticate a user without this
+5. Register a GitHub OAuth App (for login — separate from the GitHub App itself, see
+   `apps/api/.env.example`), run `npm install` to pick up `cookie-parser`, and exercise the
+   `/auth/github/login` → `/auth/github/callback` round trip in a browser
+6. `apps/web`: run `npm run dev` yourself and click through it against a real `apps/api` +
+   Postgres — this session verified the build/lint/route-render mechanics but never saw real
+   repository/review-job data or a real browser
+7. Add a proper auth guard for `app/(dashboard)/` (middleware or a server-side check) — right
+   now an unauthenticated visit briefly renders the shell before the axios interceptor's
+   client-side redirect fires

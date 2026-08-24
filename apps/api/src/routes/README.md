@@ -5,5 +5,12 @@ per-route middleware (auth guard, request validator) before handing off to a con
 
 No business logic, no DB access, no direct calls to `integrations/`.
 
-Planned files: `auth.routes.js`, `webhooks.routes.js`, `repositories.routes.js`,
-`review-jobs.routes.js`, `index.js` (mounts everything on the Express app).
+- `health.routes.js` — `GET /health`, `GET /health/ready`
+- `webhooks.routes.js` — `POST /webhooks/github` (signature-verified, not auth-guarded)
+- `auth.routes.js` — `GET /auth/github/login`, `GET /auth/github/callback`,
+  `POST /auth/logout`, `GET /auth/me` (auth-guarded)
+- `repositories.routes.js` — `GET /repositories`, `GET /repositories/:id`,
+  `PATCH /repositories/:id` (all auth-guarded)
+- `review-jobs.routes.js` — `GET /review-jobs?repositoryId=`, `GET /review-jobs/:id`
+  (all auth-guarded)
+- `index.js` — mounts everything on the Express app

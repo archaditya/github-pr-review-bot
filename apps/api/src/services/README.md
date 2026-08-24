@@ -13,5 +13,10 @@ repository method rather than reaching around it).
   findings generation, summary posting), called from `jobs/review-pipeline.job.js`'s steps
 - `conversation.service.js` — owns the `@mention`-only trigger rule (ADR-009, D4) for
   detecting whether a PR comment is directed at the bot
-- `auth.service.js` *(planned)* — login, session/JWT issuance
-- `repository.service.js` *(planned)* — repo connect/disconnect, per-repo settings
+- `auth.service.js` — GitHub OAuth login flow (state generation, code exchange, user
+  upsert) + session JWT issuance
+- `repository.service.js` — list/get/toggle repos, scoped to the requesting user's own
+  installations (every method enforces ownership — see `docs/architecture/data-model.md`
+  § Isolation rules)
+- `review-job.service.js` — read-only queries for the dashboard: cursor-paginated job list
+  per repository, full job detail (summary comment, conversation thread, JobEvent audit trail)
