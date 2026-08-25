@@ -27,14 +27,17 @@ async function handlePullRequestEvent(payload) {
   }
 
   const reviewJob = await db.sequelize.transaction(async (transaction) => {
+    const existingUser = await db.User.findOne({
+      where: { name: repository.owner.login },
+      transaction,
+    });
+
     const [installationRow] = await db.Installation.findOrCreate({
       where: { githubInstallationId: installation.id },
       defaults: {
         githubInstallationId: installation.id,
         accountLogin: repository.owner.login,
-        // installedByUserId is set during the install flow (services/auth.service.js);
-        // a webhook can, in principle, arrive before that row exists — this is backfilled
-        // there, not raised as an error here.
+        installedByUserId: existingUser?.id || null,
       },
       transaction,
     });

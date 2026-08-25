@@ -56,6 +56,12 @@ async function completeLogin({ code }) {
     name: profile.name || profile.login || user.name,
   });
 
+  // Link any installations for this account to this user
+  await db.Installation.update(
+    { installedByUserId: user.id },
+    { where: { accountLogin: profile.login, installedByUserId: null } },
+  );
+
   const token = issueToken(user);
   return { user, token };
 }
