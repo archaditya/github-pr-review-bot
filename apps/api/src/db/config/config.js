@@ -17,13 +17,5 @@ const base = {
 module.exports = {
   development: { ...base },
   test: { ...base },
-  production: {
-    ...base,
-    dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: false,
-      },
-    },
-  },
+  production: { ...base },
 };
