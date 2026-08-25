@@ -15,6 +15,7 @@ CMD ["npm", "run", "dev"]
 # --- build: production Next.js build (next.config.mjs sets output: 'standalone') ---
 FROM base AS build
 COPY . .
+RUN mkdir -p /app/public
 RUN npm run build
 
 # --- prod: minimal runtime — just the standalone server bundle, no node_modules copy,
