@@ -12,7 +12,7 @@ services:
     volumes:
       - postgres_data_prod:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -40,7 +40,7 @@ services:
     restart: unless-stopped
     env_file: ./secrets/api.env
     ports:
-      - "${API_PORT:-4000}:4000"
+      - "${API_PORT:-4050}:4000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,7 +60,7 @@ services:
     restart: unless-stopped
     env_file: ./secrets/web.env
     ports:
-      - "${WEB_PORT:-3000}:3000"
+      - "${WEB_PORT:-3050}:3000"
     depends_on:
       - api
 
