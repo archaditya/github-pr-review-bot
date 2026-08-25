@@ -4,6 +4,7 @@ import { useRepositories } from '@/hooks/use-repositories';
 import { RepoListItem } from '@/components/repo-list-item';
 import { EmptyState } from '@/components/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 
 export default function RepositoriesPage() {
   const { data: repositories, isLoading, isError } = useRepositories();
