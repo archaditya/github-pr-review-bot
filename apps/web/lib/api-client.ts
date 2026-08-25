@@ -5,7 +5,7 @@ import axios from 'axios';
  * handling (cookie credentials, 401 redirect) stays in one place.
  */
 export const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || '',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || '/api',
   withCredentials: true, // sends the httpOnly session cookie set by apps/api's auth flow
 });
 
