@@ -19,9 +19,9 @@ module.exports = {
       },
       installed_by_user_id: {
         type: Sequelize.UUID,
-        allowNull: false,
+        allowNull: true,
         references: { model: 'users', key: 'id' },
-        onDelete: 'RESTRICT',
+        onDelete: 'SET NULL',
         onUpdate: 'CASCADE',
       },
       created_at: {

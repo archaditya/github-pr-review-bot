@@ -28,7 +28,7 @@ async function handlePullRequestEvent(payload) {
 
   const reviewJob = await db.sequelize.transaction(async (transaction) => {
     const existingUser = await db.User.findOne({
-      where: { name: repository.owner.login },
+      where: { githubUserId: repository.owner.id },
       transaction,
     });
 
@@ -41,6 +41,11 @@ async function handlePullRequestEvent(payload) {
       },
       transaction,
     });
+
+    // If an existing installation had no user linked, link it now if user exists
+    if (existingUser && !installationRow.installedByUserId) {
+      await installationRow.update({ installedByUserId: existingUser.id }, { transaction });
+    }
 
     const [repositoryRow] = await db.Repository.findOrCreate({
       where: { githubRepoId: repository.id },
