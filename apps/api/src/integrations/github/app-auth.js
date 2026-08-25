@@ -20,10 +20,23 @@ async function getApp() {
 
     const { App } = await import('@octokit/app');
 
+    let privateKey = config.github.privateKey;
+    if (
+      privateKey &&
+      !privateKey.includes('-----BEGIN') &&
+      !privateKey.includes('-----BEGIN RSA')
+    ) {
+      try {
+        privateKey = Buffer.from(privateKey, 'base64').toString('utf8');
+      } catch (err) {
+        // ignore and fallback
+      }
+    }
+
     appInstance = new App({
       appId: config.github.appId,
       // Support the PEM being stored as a single env-var line with literal "\n" sequences
-      privateKey: config.github.privateKey.replace(/\\n/g, '\n'),
+      privateKey: privateKey.replace(/\\n/g, '\n'),
     });
   }
 
