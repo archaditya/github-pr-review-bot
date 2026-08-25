@@ -5,7 +5,7 @@ import axios from 'axios';
  * handling (cookie credentials, 401 redirect) stays in one place.
  */
 export const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || '',
   withCredentials: true, // sends the httpOnly session cookie set by apps/api's auth flow
 });
 
@@ -13,7 +13,9 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
-      window.location.href = '/login';
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   },

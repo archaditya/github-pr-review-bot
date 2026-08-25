@@ -11,5 +11,6 @@ export function useRepositories() {
       const { data } = await apiClient.get<{ data: Repository[] }>('/repositories');
       return data.data;
     },
+    retry: false,
   });
 }
