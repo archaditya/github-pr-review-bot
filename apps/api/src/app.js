@@ -48,6 +48,7 @@ app.use(
 );
 app.use(express.urlencoded({ extended: true }));
 
+app.use('/api', routes);
 app.use('/', routes);
 
 // Inngest's own endpoint — it introspects/invokes registered functions (ADR-005).
