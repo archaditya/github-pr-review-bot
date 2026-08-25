@@ -32,7 +32,7 @@ module.exports = (sequelize) => {
       },
       installedByUserId: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true,
         references: { model: 'users', key: 'id' },
       },
     },
