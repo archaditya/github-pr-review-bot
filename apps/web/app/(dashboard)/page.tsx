@@ -35,7 +35,18 @@ export default function RepositoriesPage() {
       {repositories && repositories.length === 0 && (
         <EmptyState
           title="No repositories yet"
-          description="Install the GitHub App on a repository to start getting reviews."
+          description="Install the GitHub App on your repositories and open a PR to start getting AI reviews."
+          action={
+            <Button asChild size="sm">
+              <a
+                href="https://github.com/apps/archadi-pr-review-bot/installations/new"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Install GitHub App
+              </a>
+            </Button>
+          }
         />
       )}
 
