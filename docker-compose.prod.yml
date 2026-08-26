@@ -21,7 +21,6 @@ services:
   neo4j:
     image: neo4j:5-community
     restart: unless-stopped
-    env_file: ./secrets/indexer-service.env
     environment:
       - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-archadi_prod_neo4j_sec_88492019384729182}
       - NEO4J_server_memory_heap_initial__size=256m
