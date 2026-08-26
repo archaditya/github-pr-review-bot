@@ -6,7 +6,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 from ..core.config import settings
 from ..core.openai_client import get_openai_client
-from ..schemas.review_request import ChangedFileContext, PullRequestMeta
+from ..schemas.review_request import ChangedFileContext, PullRequestMeta, ImpactContext
 from ..schemas.review_response import ReviewResponse
 from ..schemas.finding import Finding
 from ..utils.diff_capping import cap_diff
@@ -25,7 +25,10 @@ class ReviewGenerationError(Exception):
 
 
 def _build_user_message(
-    diff: str, usage_context: list[ChangedFileContext], pr: PullRequestMeta
+    diff: str,
+    usage_context: list[ChangedFileContext],
+    pr: PullRequestMeta,
+    impact_context: ImpactContext | None = None,
 ) -> str:
     usage_block = (
         "\n\n".join(
@@ -35,11 +38,37 @@ def _build_user_message(
         or "(no per-file context available)"
     )
 
-    return (
-        f"Pull request: {pr.owner}/{pr.repo} #{pr.number}\n\n"
-        f"## Full diff\n```diff\n{diff}\n```\n\n"
-        f"## Per-file context\n{usage_block}"
-    )
+    parts = [
+        f"Pull request: {pr.owner}/{pr.repo} #{pr.number}\n\n",
+        f"## Full diff\n```diff\n{diff}\n```\n\n",
+        f"## Per-file context\n{usage_block}",
+    ]
+
+    # Append structural impact context when available (from code knowledge graph)
+    if impact_context and impact_context.changed_symbols:
+        impact_parts = ["\n\n## Structural Impact Analysis (from code knowledge graph)"]
+
+        if impact_context.changed_symbols:
+            impact_parts.append(f"\n### Changed Symbols\n" + "\n".join(f"- `{s}`" for s in impact_context.changed_symbols))
+
+        if impact_context.callers:
+            impact_parts.append(f"\n### Callers of Changed Code")
+            for caller in impact_context.callers[:20]:  # cap to avoid bloating context
+                impact_parts.append(f"- `{caller.name}` in `{caller.file_path}`")
+
+        if impact_context.callees:
+            impact_parts.append(f"\n### Functions Called by Changed Code\n" + "\n".join(f"- `{c}`" for c in impact_context.callees[:20]))
+
+        if impact_context.affected_endpoints:
+            impact_parts.append(f"\n### Affected API Endpoints\n" + "\n".join(f"- `{ep}`" for ep in impact_context.affected_endpoints))
+
+        if impact_context.related_tests:
+            impact_parts.append(f"\n### Related Test Files\n" + "\n".join(f"- `{t}`" for t in impact_context.related_tests))
+
+        impact_parts.append(f"\n### Impact Summary: {impact_context.affected_files_count} files potentially affected")
+        parts.extend(impact_parts)
+
+    return "".join(parts)
 
 
 @retry(
@@ -66,7 +95,10 @@ async def _call_model(user_message: str) -> dict:
 
 
 async def generate_review(
-    diff: str, usage_context: list[ChangedFileContext], pull_request: PullRequestMeta
+    diff: str,
+    usage_context: list[ChangedFileContext],
+    pull_request: PullRequestMeta,
+    impact_context: ImpactContext | None = None,
 ) -> ReviewResponse:
     """
     ReviewContext -> structured findings. Guardrails applied, in order:
@@ -86,7 +118,7 @@ async def generate_review(
     if truncated:
         logger.warning("diff truncated to fit max_diff_tokens", extra={"pr": pr_label})
 
-    user_message = _build_user_message(capped_diff, usage_context, pull_request)
+    user_message = _build_user_message(capped_diff, usage_context, pull_request, impact_context)
 
     try:
         raw = await _call_model(user_message)

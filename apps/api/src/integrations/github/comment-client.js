@@ -7,12 +7,15 @@ const { getInstallationOctokit } = require('./app-auth');
  */
 async function postSummaryComment({ installationId, owner, repo, pullNumber, body }) {
   const octokit = await getInstallationOctokit(installationId);
-  const { data } = await octokit.rest.issues.createComment({
-    owner,
-    repo,
-    issue_number: pullNumber,
-    body,
-  });
+  const { data } = await octokit.request(
+    'POST /repos/{owner}/{repo}/issues/{issue_number}/comments',
+    {
+      owner,
+      repo,
+      issue_number: pullNumber,
+      body,
+    },
+  );
   return data;
 }
 

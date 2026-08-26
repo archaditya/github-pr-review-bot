@@ -4,6 +4,7 @@ const { REVIEW_JOB_STATUSES } = require('../constants/review-job-status');
 const githubPr = require('../integrations/github/pull-request-client');
 const githubComments = require('../integrations/github/comment-client');
 const aiService = require('../integrations/ai-service-client');
+const eventBus = require('./event-bus.service');
 
 /**
  * Moves a ReviewJob to `status` (guarded by the model hook in models/review-job.model.js)
@@ -32,6 +33,14 @@ async function transitionStatus(reviewJobId, status, { error, detail, step } = {
     detail: detail || null,
   });
 
+  // Emit real-time event for WebSocket broadcast
+  eventBus.emitReviewStatusChange({
+    reviewJobId,
+    status,
+    step: step || status.toLowerCase(),
+    detail: detail || null,
+  });
+
   return reviewJob;
 }
 
@@ -57,12 +66,18 @@ function resolveUsageContext(changedFiles) {
   }));
 }
 
-async function generateFindings({ diff, usageContext, pr }) {
+async function generateFindings({ diff, usageContext, impactContext, pr }) {
   const reviewContext = {
     diff,
     usage_context: usageContext,
     pull_request: pr,
   };
+
+  // Attach structural impact context when available (from code knowledge graph)
+  if (impactContext) {
+    reviewContext.impact_context = impactContext;
+  }
+
   const result = await aiService.generateReview(reviewContext);
   return result.findings || [];
 }
@@ -72,9 +87,13 @@ function renderSummaryBody(findings) {
     return '### AI Review Summary\n\nNo issues found.';
   }
 
-  const lines = findings.map(
-    (f) => `- **${f.severity || 'info'}** \`${f.file}:${f.line}\` — ${f.rationale}`,
-  );
+  const lines = findings.map((f) => {
+    let line = `- **${f.severity || 'info'}** \`${f.file}:${f.line}\` — ${f.rationale}`;
+    if (f.evidence) {
+      line += `\n  > _Evidence: ${f.evidence}_`;
+    }
+    return line;
+  });
 
   return [
     '### AI Review Summary',

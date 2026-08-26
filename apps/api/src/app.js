@@ -10,6 +10,7 @@ const config = require('./config');
 const requestLogger = require('./middlewares/request-logger.middleware');
 const errorHandler = require('./middlewares/error-handler.middleware');
 const notFoundHandler = require('./middlewares/not-found.middleware');
+const appKeyMiddleware = require('./middlewares/app-key.middleware');
 const routes = require('./routes');
 const { inngest, functions } = require('./jobs');
 
@@ -47,6 +48,10 @@ app.use(
   }),
 );
 app.use(express.urlencoded({ extended: true }));
+
+// App Key access control — personal application guard.
+// Exempt: /health, /webhooks, /api/inngest (GitHub + Inngest need access without a key)
+app.use(appKeyMiddleware);
 
 app.use('/api', routes);
 app.use('/', routes);

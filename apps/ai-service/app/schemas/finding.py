@@ -17,3 +17,7 @@ class Finding(BaseModel):
     line: Optional[int] = None
     severity: Severity
     rationale: str = Field(..., max_length=1000)
+    evidence: Optional[str] = Field(None, max_length=500, description="Graph-backed structural evidence")
+    confidence: Optional[str] = Field(None, description="high/medium/low — model's self-assessed confidence")
+    affected_symbols: list[str] = Field(default_factory=list, description="FQNs of impacted symbols")
+

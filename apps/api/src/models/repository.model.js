@@ -40,6 +40,38 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: true,
       },
+      indexStatus: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        defaultValue: 'NOT_INDEXED',
+      },
+      indexedCommitSha: {
+        type: DataTypes.STRING(40),
+        allowNull: true,
+      },
+      indexedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      defaultBranch: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+        defaultValue: 'main',
+      },
+      indexError: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      fileCount: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
+      symbolCount: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
     },
     {
       sequelize,

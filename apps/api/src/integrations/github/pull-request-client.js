@@ -6,7 +6,11 @@ const { getInstallationOctokit } = require('./app-auth');
  */
 async function getPullRequest({ installationId, owner, repo, pullNumber }) {
   const octokit = await getInstallationOctokit(installationId);
-  const { data } = await octokit.rest.pulls.get({ owner, repo, pull_number: pullNumber });
+  const { data } = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}', {
+    owner,
+    repo,
+    pull_number: pullNumber,
+  });
   return data;
 }
 
@@ -16,13 +20,15 @@ async function getPullRequest({ installationId, owner, repo, pullNumber }) {
  */
 async function getPullRequestDiff({ installationId, owner, repo, pullNumber }) {
   const octokit = await getInstallationOctokit(installationId);
-  const { data } = await octokit.rest.pulls.get({
+  const { data } = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}', {
     owner,
     repo,
     pull_number: pullNumber,
-    mediaType: { format: 'diff' },
+    headers: {
+      accept: 'application/vnd.github.v3.diff',
+    },
   });
-  return data; // raw diff text (octokit returns it as a string when format: 'diff')
+  return data; // raw diff text (octokit returns it as a string when diff header is used)
 }
 
 /**
@@ -31,12 +37,13 @@ async function getPullRequestDiff({ installationId, owner, repo, pullNumber }) {
  */
 async function listChangedFiles({ installationId, owner, repo, pullNumber }) {
   const octokit = await getInstallationOctokit(installationId);
-  return octokit.paginate(octokit.rest.pulls.listFiles, {
+  const { data } = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}/files', {
     owner,
     repo,
     pull_number: pullNumber,
     per_page: 100,
   });
+  return data || [];
 }
 
 module.exports = { getPullRequest, getPullRequestDiff, listChangedFiles };
