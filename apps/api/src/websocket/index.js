@@ -13,18 +13,33 @@ function setupWebSocket(httpServer) {
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
 
   wss.on('connection', async (ws, req) => {
-    // Authenticate via query param
+    // Authenticate via query param or cookie
     const url = new URL(req.url, 'http://localhost');
     const appKey = url.searchParams.get('key');
+    let authenticated = false;
 
-    if (!appKey) {
-      ws.close(4001, 'Missing app key');
-      return;
+    if (appKey) {
+      const valid = await apiKeyService.validateKey(appKey);
+      if (valid) authenticated = true;
     }
 
-    const valid = await apiKeyService.validateKey(appKey);
-    if (!valid) {
-      ws.close(4003, 'Invalid app key');
+    // Also check session cookie if present
+    if (!authenticated && req.headers.cookie) {
+      const jwt = require('jsonwebtoken');
+      const config = require('../config');
+      const cookieHeader = req.headers.cookie || '';
+      const match = cookieHeader.match(new RegExp(`(^|;\\s*)${config.auth.sessionCookieName}=([^;]+)`));
+      const sessionToken = match ? decodeURIComponent(match[2]) : null;
+      if (sessionToken) {
+        try {
+          jwt.verify(sessionToken, config.auth.jwtSecret);
+          authenticated = true;
+        } catch {}
+      }
+    }
+
+    if (!authenticated) {
+      ws.close(4001, 'Authentication required (session cookie or app key)');
       return;
     }
 
