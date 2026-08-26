@@ -31,8 +31,7 @@ async function getForUser(userId, repositoryId) {
 }
 
 /**
- * Toggles whether the bot reviews PRs on this repo — lets a user pause reviews without
- * uninstalling the GitHub App entirely (docs/architecture/data-model.md).
+ * Toggles whether the bot reviews PRs on this repo.
  */
 async function setActive(userId, repositoryId, isActive) {
   const repository = await getForUser(userId, repositoryId);
@@ -58,6 +57,9 @@ async function triggerReindex(userId, repositoryId) {
     },
   });
 
+  return repository;
+}
+
 async function resetIndex(userId, repositoryId) {
   const repository = await getForUser(userId, repositoryId);
   await repository.update({
@@ -75,5 +77,3 @@ async function resetIndex(userId, repositoryId) {
 }
 
 module.exports = { listForUser, getForUser, setActive, triggerReindex, resetIndex };
-
-
