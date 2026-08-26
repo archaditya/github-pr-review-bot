@@ -165,4 +165,110 @@ async function handleIssueCommentEvent(payload) {
   return reviewJob;
 }
 
-module.exports = { handlePullRequestEvent, handleIssueCommentEvent };
+/**
+ * installation_repositories.added — triggered when repos are added to the GitHub App installation.
+ * Emits indexing events for each newly-added repository.
+ */
+async function handleInstallationRepositoriesEvent(payload) {
+  const { action, installation, repositories_added: reposAdded } = payload;
+
+  if (action !== 'added' || !reposAdded?.length) return null;
+
+  const existingUser = await db.User.findOne({
+    where: { githubUserId: installation.account.id },
+  });
+
+  const [installationRow] = await db.Installation.findOrCreate({
+    where: { githubInstallationId: installation.id },
+    defaults: {
+      githubInstallationId: installation.id,
+      accountLogin: installation.account.login,
+      installedByUserId: existingUser?.id || null,
+    },
+  });
+
+  for (const repo of reposAdded) {
+    const [repositoryRow, created] = await db.Repository.findOrCreate({
+      where: { githubRepoId: repo.id },
+      defaults: {
+        installationId: installationRow.id,
+        githubRepoId: repo.id,
+        fullName: repo.full_name,
+        isActive: true,
+      },
+    });
+
+    if (created || repositoryRow.indexStatus === 'NOT_INDEXED') {
+      const [owner, repoName] = repo.full_name.split('/');
+      await inngest.send({
+        name: 'repo/index.requested',
+        data: {
+          repositoryId: repositoryRow.id,
+          installationId: installation.id,
+          owner,
+          repo: repoName,
+          branch: 'main',
+        },
+      });
+      logger.info({ repoId: repositoryRow.id, fullName: repo.full_name }, 'initial indexing triggered');
+    }
+  }
+
+  return reposAdded.length;
+}
+
+/**
+ * push — triggered on every push. We only care about pushes to the default branch
+ * (i.e., PR merges) for incremental indexing.
+ */
+async function handlePushEvent(payload) {
+  const { ref, repository, installation, commits, head_commit: headCommit } = payload;
+
+  // Only process pushes to the default branch
+  const defaultBranch = repository.default_branch || 'main';
+  const expectedRef = `refs/heads/${defaultBranch}`;
+  if (ref !== expectedRef) return null;
+
+  const repositoryRow = await db.Repository.findOne({
+    where: { githubRepoId: repository.id },
+  });
+  if (!repositoryRow) return null;
+
+  // Only run incremental index if the repo is already indexed
+  if (repositoryRow.indexStatus !== 'INDEXED') return null;
+
+  // Collect unique changed file paths from commits
+  const changedFiles = new Set();
+  for (const commit of (commits || [])) {
+    (commit.added || []).forEach((f) => changedFiles.add(f));
+    (commit.modified || []).forEach((f) => changedFiles.add(f));
+    (commit.removed || []).forEach((f) => changedFiles.add(f));
+  }
+
+  const [owner, repoName] = repository.full_name.split('/');
+  await inngest.send({
+    name: 'repo/push.default-branch',
+    data: {
+      repositoryId: repositoryRow.id,
+      installationId: installation.id,
+      owner,
+      repo: repoName,
+      branch: defaultBranch,
+      changedFiles: [...changedFiles],
+      headSha: headCommit?.id || null,
+    },
+  });
+
+  logger.info(
+    { repoId: repositoryRow.id, changedFiles: changedFiles.size },
+    'incremental indexing triggered',
+  );
+  return changedFiles.size;
+}
+
+module.exports = {
+  handlePullRequestEvent,
+  handleIssueCommentEvent,
+  handleInstallationRepositoriesEvent,
+  handlePushEvent,
+};

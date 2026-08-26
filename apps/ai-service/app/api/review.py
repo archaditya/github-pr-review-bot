@@ -24,6 +24,7 @@ async def generate_review_endpoint(payload: ReviewRequest) -> ReviewResponse:
             diff=payload.diff,
             usage_context=payload.usage_context,
             pull_request=payload.pull_request,
+            impact_context=payload.impact_context,
         )
     except ReviewGenerationError as exc:
         # Mapped to a 502 so apps/api's circuit breaker (ADR-006) counts this as a

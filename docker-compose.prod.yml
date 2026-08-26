@@ -1,8 +1,8 @@
 # Production — immutable images, no bind mounts, secrets via env_file pointing at
-# deploy-time secret files (ADR-008). Postgres and ai-service are never exposed on the
-# host — only reachable on the internal Docker network. api/web ports ARE exposed
-# directly so an externally-managed reverse proxy (set up separately, outside this repo)
-# can route to them.
+# deploy-time secret files (ADR-008). Postgres, ai-service, indexer-service, neo4j,
+# and redis are never exposed on the host — only reachable on the internal Docker
+# network. api/web ports ARE exposed directly so an externally-managed reverse proxy
+# (set up separately, outside this repo) can route to them.
 
 services:
   postgres:
@@ -18,6 +18,37 @@ services:
       retries: 10
     # No `ports:` — reachable only on the internal network
 
+  neo4j:
+    image: neo4j:5-community
+    restart: unless-stopped
+    environment:
+      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-changeme}
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_server_memory_heap_initial__size=256m
+      - NEO4J_server_memory_heap_max__size=512m
+      - NEO4J_server_memory_pagecache_size=256m
+    volumes:
+      - neo4j_data_prod:/data
+    healthcheck:
+      test: ["CMD", "neo4j", "status"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    # No `ports:` — reachable only on the internal network
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data_prod:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # No `ports:` — reachable only on the internal network
+
   ai-service:
     build:
       context: ./apps/ai-service
@@ -27,6 +58,25 @@ services:
     env_file: ./secrets/ai-service.env
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    # No `ports:` — reachable only from `api` on the internal network
+
+  indexer-service:
+    build:
+      context: ./apps/indexer-service
+      dockerfile: Dockerfile
+      target: prod
+    restart: unless-stopped
+    env_file: ./secrets/indexer-service.env
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    volumes:
+      - indexer_tmp_prod:/tmp/repos
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -45,6 +95,10 @@ services:
       postgres:
         condition: service_healthy
       ai-service:
+        condition: service_healthy
+      indexer-service:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
@@ -66,3 +120,6 @@ services:
 
 volumes:
   postgres_data_prod:
+  neo4j_data_prod:
+  redis_data_prod:
+  indexer_tmp_prod:

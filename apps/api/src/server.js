@@ -2,6 +2,7 @@ const app = require('./app');
 const config = require('./config');
 const logger = require('./utils/logger');
 const db = require('./models');
+const { setupWebSocket } = require('./websocket');
 
 let server;
 
@@ -14,6 +15,9 @@ async function start() {
   server = app.listen(config.port, () => {
     logger.info({ port: config.port, env: config.env }, 'api server listening');
   });
+
+  // Attach WebSocket server to the same HTTP server for real-time event streaming
+  setupWebSocket(server);
 }
 
 async function shutdown(signal) {

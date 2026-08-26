@@ -24,8 +24,17 @@ REVIEW_FINDINGS_SCHEMA = {
                             "enum": ["critical", "high", "medium", "low", "info"],
                         },
                         "rationale": {"type": "string"},
+                        "evidence": {"type": ["string", "null"]},
+                        "confidence": {
+                            "type": ["string", "null"],
+                            "enum": ["high", "medium", "low", None],
+                        },
+                        "affected_symbols": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        },
                     },
-                    "required": ["file", "line", "severity", "rationale"],
+                    "required": ["file", "line", "severity", "rationale", "evidence", "confidence", "affected_symbols"],
                     "additionalProperties": False,
                 },
             },

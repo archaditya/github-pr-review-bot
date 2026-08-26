@@ -49,6 +49,12 @@ const config = {
     eventKey: env.INNGEST_EVENT_KEY,
     signingKey: env.INNGEST_SIGNING_KEY,
   },
+
+  indexerServiceUrl: process.env.INDEXER_SERVICE_URL || 'http://indexer-service:8001',
+
+  redis: {
+    url: process.env.REDIS_URL || 'redis://redis:6379',
+  },
 };
 
 module.exports = config;
