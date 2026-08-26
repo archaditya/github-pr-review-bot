@@ -24,18 +24,17 @@ services:
     env_file: ./secrets/indexer-service.env
     environment:
       - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-archadi_prod_neo4j_sec_88492019384729182}
-      - NEO4J_PLUGINS=["apoc"]
       - NEO4J_server_memory_heap_initial__size=256m
       - NEO4J_server_memory_heap_max__size=512m
       - NEO4J_server_memory_pagecache_size=256m
     volumes:
       - neo4j_data_prod:/data
     healthcheck:
-      test: ["CMD", "neo4j", "status"]
-      interval: 15s
-      timeout: 10s
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 20s
     # No `ports:` — reachable only on the internal network
 
   redis:
