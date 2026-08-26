@@ -40,4 +40,27 @@ async function setActive(userId, repositoryId, isActive) {
   return repository;
 }
 
-module.exports = { listForUser, getForUser, setActive };
+async function triggerReindex(userId, repositoryId) {
+  const inngest = require('../jobs/client');
+  const repository = await getForUser(userId, repositoryId);
+
+  await repository.update({ indexStatus: 'INDEXING', indexError: null });
+
+  const [owner, repoName] = repository.fullName.split('/');
+  await inngest.send({
+    name: 'repo/index.requested',
+    data: {
+      repositoryId: repository.id,
+      installationId: repository.installation.githubInstallationId,
+      owner,
+      repo: repoName,
+      branch: repository.defaultBranch || 'main',
+    },
+  });
+
+  return repository;
+}
+
+module.exports = { listForUser, getForUser, setActive, triggerReindex };
+
+
