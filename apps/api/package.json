@@ -33,13 +33,13 @@
     "pino": "^9.3.2",
     "pino-http": "^10.2.0",
     "sequelize": "^6.37.3",
+    "sequelize-cli": "^6.6.2",
     "ws": "^8.18.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "eslint": "^8.57.0",
     "nodemon": "^3.1.4",
-    "pino-pretty": "^11.2.2",
-    "sequelize-cli": "^6.6.2"
+    "pino-pretty": "^11.2.2"
   }
 }
