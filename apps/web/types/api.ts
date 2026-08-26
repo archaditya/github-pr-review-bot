@@ -1,18 +1,25 @@
 /**
- * Mirrors apps/api/src/models/ and the JSON shapes its controllers return. Keep this in
- * sync with apps/api whenever a response shape changes (there's no shared codegen between
- * the two yet — see PROGRESS.md).
+ * Mirrors apps/api/src/models/ and the JSON shapes its controllers return.
  */
 
 export type ReviewJobStatus =
   | 'PENDING'
   | 'FETCHING_DIFF'
-  | 'RESOLVING_USAGES'
+  | 'ANALYZING_IMPACT'
+  | 'BUILDING_CONTEXT'
   | 'GENERATING_REVIEW'
   | 'POSTING_COMMENTS'
   | 'COMPLETED'
   | 'FAILED'
-  | 'RETRYING';
+  | 'RETRYING'
+  | 'RESOLVING_USAGES'; // legacy fallback
+
+export type RepoIndexStatus =
+  | 'NOT_INDEXED'
+  | 'INDEXING'
+  | 'INDEXED'
+  | 'REINDEXING'
+  | 'FAILED';
 
 export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info';
 
@@ -29,6 +36,13 @@ export interface Repository {
   githubRepoId: number;
   fullName: string;
   isActive: boolean;
+  indexStatus: RepoIndexStatus;
+  indexedCommitSha: string | null;
+  indexedAt: string | null;
+  defaultBranch: string;
+  indexError: string | null;
+  fileCount: number;
+  symbolCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -57,6 +71,9 @@ export interface Finding {
   line: number | null;
   severity: Severity;
   rationale: string;
+  evidence?: string | null;
+  confidence?: 'high' | 'medium' | 'low' | null;
+  affected_symbols?: string[];
 }
 
 export interface ReviewComment {
@@ -86,4 +103,14 @@ export interface ReviewJobDetail extends ReviewJob {
   summaryComment?: ReviewComment | null;
   conversationMessages: ConversationMessage[];
   events: JobEvent[];
+}
+
+export interface ApiKey {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  isActive: boolean;
+  lastUsedAt: string | null;
+  createdAt: string;
+  rawKey?: string;
 }

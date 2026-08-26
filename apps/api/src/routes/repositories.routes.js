@@ -11,5 +11,6 @@ router.use(requireAuth);
 router.get('/', repositoriesController.list);
 router.get('/:id', repositoriesController.get);
 router.patch('/:id', validate(updateRepositorySchema), repositoriesController.update);
+router.post('/:id/reindex', repositoriesController.reindex);
 
 module.exports = router;
