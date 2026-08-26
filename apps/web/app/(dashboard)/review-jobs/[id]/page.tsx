@@ -39,9 +39,10 @@ export default function ReviewJobDetailPage() {
   const inFlight = job.status !== 'COMPLETED' && job.status !== 'FAILED';
 
   async function handleDelete() {
+    if (!job) return;
     if (confirm('Are you sure you want to delete this review job?')) {
       await deleteJob.mutateAsync(job.id);
-      router.replace(job.pullRequest ? `/repositories` : '/');
+      router.replace('/repositories');
     }
   }
 
