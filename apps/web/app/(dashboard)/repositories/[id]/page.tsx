@@ -2,11 +2,30 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { Database, RefreshCw, GitBranch, GitCommit, FileCode2, Clock, AlertCircle } from 'lucide-react';
+import {
+  Database,
+  RefreshCw,
+  GitBranch,
+  GitCommit,
+  FileCode2,
+  Clock,
+  AlertCircle,
+  RotateCcw,
+  Trash2,
+  Ban,
+  Play,
+  RotateCw,
+} from 'lucide-react';
 import { useRepository } from '@/hooks/use-repository';
 import { useReviewJobs } from '@/hooks/use-review-jobs';
 import { useUpdateRepository } from '@/hooks/use-update-repository';
 import { useReindexRepository } from '@/hooks/use-reindex-repository';
+import { useResetIndexRepository } from '@/hooks/use-reset-index-repository';
+import {
+  useCancelReviewJob,
+  useDeleteReviewJob,
+  useRetryReviewJob,
+} from '@/hooks/use-review-job-actions';
 import { StatusBadge, IndexStatusBadge } from '@/components/status-badge';
 import { EmptyState } from '@/components/empty-state';
 import { Button } from '@/components/ui/button';
@@ -18,6 +37,11 @@ export default function RepositoryDetailPage() {
   const { data: jobs, isLoading: jobsLoading } = useReviewJobs(params.id);
   const updateRepository = useUpdateRepository(params.id);
   const reindexRepository = useReindexRepository(params.id);
+  const resetIndexRepository = useResetIndexRepository(params.id);
+
+  const cancelJob = useCancelReviewJob();
+  const deleteJob = useDeleteReviewJob();
+  const retryJob = useRetryReviewJob();
 
   if (repoLoading) return <Skeleton className="h-24 w-full rounded-lg" />;
 
@@ -47,6 +71,20 @@ export default function RepositoryDetailPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {isIndexing && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => resetIndexRepository.mutate()}
+              disabled={resetIndexRepository.isPending}
+              className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground hover:text-destructive"
+              title="Reset stuck indexing state"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Reset Index
+            </Button>
+          )}
+
           <Button
             variant="outline"
             size="sm"
@@ -71,12 +109,22 @@ export default function RepositoryDetailPage() {
 
       {/* Index Error Alert */}
       {repository.indexError && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold">Indexing Failed</p>
-            <p className="font-mono text-xs opacity-90">{repository.indexError}</p>
+        <div className="flex items-start justify-between gap-2.5 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">Indexing Failed</p>
+              <p className="font-mono text-xs opacity-90">{repository.indexError}</p>
+            </div>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => resetIndexRepository.mutate()}
+            className="text-xs shrink-0"
+          >
+            Clear Error
+          </Button>
         </div>
       )}
 
@@ -134,9 +182,11 @@ export default function RepositoryDetailPage() {
 
       {/* Review Activity */}
       <div className="flex flex-col gap-3">
-        <h2 className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
-          Review activity
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="font-mono text-xs uppercase tracking-widest text-muted-foreground font-semibold">
+            Review activity
+          </h2>
+        </div>
 
         {jobsLoading && (
           <div className="flex flex-col gap-2">
@@ -154,24 +204,85 @@ export default function RepositoryDetailPage() {
         )}
 
         {jobs && jobs.length > 0 && (
-          <div className="flex flex-col divide-y divide-border rounded-lg border border-border">
-            {jobs.map((job) => (
-              <Link
-                key={job.id}
-                href={`/review-jobs/${job.id}`}
-                className="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-accent"
-              >
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-sm font-medium">
-                    #{job.pullRequest?.githubPrNumber} {job.pullRequest?.title}
-                  </span>
-                  <span className="font-mono text-xs text-muted-foreground">
-                    @{job.pullRequest?.authorLogin}
-                  </span>
+          <div className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
+            {jobs.map((job) => {
+              const inFlight = job.status !== 'COMPLETED' && job.status !== 'FAILED';
+
+              return (
+                <div
+                  key={job.id}
+                  className="flex items-center justify-between gap-4 px-4 py-3.5 transition-colors hover:bg-accent/40"
+                >
+                  <Link
+                    href={`/review-jobs/${job.id}`}
+                    className="flex flex-1 flex-col gap-0.5 overflow-hidden"
+                  >
+                    <span className="text-sm font-medium hover:underline truncate">
+                      #{job.pullRequest?.githubPrNumber} {job.pullRequest?.title}
+                    </span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      @{job.pullRequest?.authorLogin} &bull; {new Date(job.createdAt).toLocaleDateString()}
+                    </span>
+                    {job.error && (
+                      <span className="text-xs text-destructive truncate max-w-md font-mono mt-0.5">
+                        Error: {job.error}
+                      </span>
+                    )}
+                  </Link>
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    <StatusBadge status={job.status} />
+
+                    {/* Job Actions: Retry, Cancel, Delete */}
+                    <div className="flex items-center gap-1 border-l border-border pl-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          retryJob.mutate(job.id);
+                        }}
+                        disabled={retryJob.isPending}
+                        title="Re-run Review"
+                        className="h-7 w-7 text-muted-foreground hover:text-primary"
+                      >
+                        <RotateCw className={`h-3.5 w-3.5 ${retryJob.isPending ? 'animate-spin' : ''}`} />
+                      </Button>
+
+                      {inFlight && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            cancelJob.mutate(job.id);
+                          }}
+                          disabled={cancelJob.isPending}
+                          title="Cancel / Stop Review"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        >
+                          <Ban className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          deleteJob.mutate(job.id);
+                        }}
+                        disabled={deleteJob.isPending}
+                        title="Delete Review Record"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-                <StatusBadge status={job.status} />
-              </Link>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

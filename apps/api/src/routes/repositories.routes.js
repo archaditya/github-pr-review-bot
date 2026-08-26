@@ -12,5 +12,6 @@ router.get('/', repositoriesController.list);
 router.get('/:id', repositoriesController.get);
 router.patch('/:id', validate(updateRepositorySchema), repositoriesController.update);
 router.post('/:id/reindex', repositoriesController.reindex);
+router.post('/:id/reset-index', repositoriesController.resetIndex);
 
 module.exports = router;

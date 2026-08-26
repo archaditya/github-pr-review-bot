@@ -40,5 +40,13 @@ async function reindex(req, res, next) {
   }
 }
 
-module.exports = { list, get, update, reindex };
+async function resetIndex(req, res, next) {
+  try {
+    const repository = await repositoryService.resetIndex(req.user.sub, req.params.id);
+    res.json({ data: repository });
+  } catch (err) {
+    next(err);
+  }
+}
 
+module.exports = { list, get, update, reindex, resetIndex };

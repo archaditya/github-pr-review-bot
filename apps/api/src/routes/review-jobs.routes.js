@@ -10,5 +10,8 @@ router.use(requireAuth);
 
 router.get('/', validate(listReviewJobsQuerySchema, 'query'), reviewJobsController.listByRepository);
 router.get('/:id', reviewJobsController.get);
+router.post('/:id/cancel', reviewJobsController.cancel);
+router.post('/:id/retry', reviewJobsController.retry);
+router.delete('/:id', reviewJobsController.remove);
 
 module.exports = router;

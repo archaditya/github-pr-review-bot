@@ -22,4 +22,31 @@ async function get(req, res, next) {
   }
 }
 
-module.exports = { listByRepository, get };
+async function cancel(req, res, next) {
+  try {
+    const job = await reviewJobService.cancelJob(req.user.sub, req.params.id);
+    res.json({ data: job });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function remove(req, res, next) {
+  try {
+    const result = await reviewJobService.deleteJob(req.user.sub, req.params.id);
+    res.json({ data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function retry(req, res, next) {
+  try {
+    const job = await reviewJobService.retryJob(req.user.sub, req.params.id);
+    res.json({ data: job });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { listByRepository, get, cancel, remove, retry };

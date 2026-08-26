@@ -58,9 +58,22 @@ async function triggerReindex(userId, repositoryId) {
     },
   });
 
+async function resetIndex(userId, repositoryId) {
+  const repository = await getForUser(userId, repositoryId);
+  await repository.update({
+    indexStatus: 'NOT_INDEXED',
+    indexError: null,
+  });
+
+  const eventBus = require('./event-bus.service');
+  eventBus.emitIndexStatusChange({
+    repositoryId: repository.id,
+    indexStatus: 'NOT_INDEXED',
+  });
+
   return repository;
 }
 
-module.exports = { listForUser, getForUser, setActive, triggerReindex };
+module.exports = { listForUser, getForUser, setActive, triggerReindex, resetIndex };
 
 
