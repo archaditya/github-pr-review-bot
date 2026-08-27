@@ -55,6 +55,11 @@ async def ensure_indexes() -> None:
     Create Neo4j indexes and constraints for graph query performance.
     Idempotent — safe to call on every startup.
     """
+    cleanup_statements = [
+        # Drop old constraint if created with old signature
+        "DROP CONSTRAINT endpoint_fqn IF EXISTS",
+    ]
+
     index_statements = [
         # Uniqueness constraints (also create indexes automatically)
         "CREATE CONSTRAINT file_fqn IF NOT EXISTS FOR (f:File) REQUIRE (f.repo_id, f.path) IS UNIQUE",
@@ -62,14 +67,21 @@ async def ensure_indexes() -> None:
         "CREATE CONSTRAINT function_fqn IF NOT EXISTS FOR (f:Function) REQUIRE (f.repo_id, f.fqn) IS UNIQUE",
         "CREATE CONSTRAINT interface_fqn IF NOT EXISTS FOR (i:Interface) REQUIRE (i.repo_id, i.fqn) IS UNIQUE",
         "CREATE CONSTRAINT variable_fqn IF NOT EXISTS FOR (v:Variable) REQUIRE (v.repo_id, v.fqn) IS UNIQUE",
-        "CREATE CONSTRAINT endpoint_fqn IF NOT EXISTS FOR (e:APIEndpoint) REQUIRE (e.repo_id, e.path_pattern, e.method) IS UNIQUE",
+        "CREATE CONSTRAINT endpoint_fqn IF NOT EXISTS FOR (e:APIEndpoint) REQUIRE (e.repo_id, e.fqn) IS UNIQUE",
         # Lookup indexes for common queries
         "CREATE INDEX file_repo IF NOT EXISTS FOR (f:File) ON (f.repo_id)",
         "CREATE INDEX function_repo IF NOT EXISTS FOR (f:Function) ON (f.repo_id)",
         "CREATE INDEX class_repo IF NOT EXISTS FOR (c:Class) ON (c.repo_id)",
+        "CREATE INDEX endpoint_lookup IF NOT EXISTS FOR (e:APIEndpoint) ON (e.repo_id, e.path_pattern, e.method)",
     ]
 
     async with get_session() as session:
+        for stmt in cleanup_statements:
+            try:
+                await session.run(stmt)
+            except Exception:
+                pass
+
         for stmt in index_statements:
             try:
                 await session.run(stmt)
