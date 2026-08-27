@@ -17,11 +17,8 @@ export function useWebSocket() {
     if (typeof window === 'undefined') return;
 
     function connect() {
-      const appKey = localStorage.getItem('prbot_app_key');
-      if (!appKey) {
-        setIsConnected(false);
-        return;
-      }
+      const storedKey = localStorage.getItem('prbot_app_key');
+      const validAppKey = storedKey && storedKey.startsWith('prbot_') ? storedKey : null;
 
       // Derive ws:// or wss:// URL from current window location or NEXT_PUBLIC_API_URL
       const isSecure = window.location.protocol === 'https:';
@@ -39,7 +36,9 @@ export function useWebSocket() {
         }
       }
 
-      const wsUrl = `${wsProtocol}//${wsHost}/ws?key=${encodeURIComponent(appKey)}`;
+      const wsUrl = validAppKey
+        ? `${wsProtocol}//${wsHost}/ws?key=${encodeURIComponent(validAppKey)}`
+        : `${wsProtocol}//${wsHost}/ws`;
 
       try {
         const ws = new WebSocket(wsUrl);

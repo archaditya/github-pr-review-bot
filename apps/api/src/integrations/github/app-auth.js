@@ -48,9 +48,13 @@ async function getApp() {
  * installation access token, cached/refreshed internally by @octokit/app — ADR-007).
  * This is the only way the rest of the codebase should get a GitHub client.
  */
-async function getInstallationOctokit(installationId) {
-  const app = await getApp();
-  return app.getInstallationOctokit(installationId);
+/**
+ * Returns a raw GitHub installation access token string for cloning or passing to external services.
+ */
+async function getInstallationToken(installationId) {
+  const octokit = await getInstallationOctokit(installationId);
+  const auth = await octokit.auth({ type: 'installation' });
+  return auth.token;
 }
 
-module.exports = { getApp, getInstallationOctokit };
+module.exports = { getApp, getInstallationOctokit, getInstallationToken };
