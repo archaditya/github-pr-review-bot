@@ -17,7 +17,8 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload
 FROM base AS prod
 RUN apt-get update && apt-get install -y --no-install-recommends curl git \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --create-home --shell /bin/bash appuser
+    && useradd --create-home --shell /bin/bash appuser \
+    && mkdir -p /tmp/repos && chown -R appuser:appuser /tmp/repos && chmod 777 /tmp/repos
 COPY . .
 USER appuser
 EXPOSE 8001

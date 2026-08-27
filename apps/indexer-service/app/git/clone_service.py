@@ -15,6 +15,22 @@ from ..core.config import settings
 logger = logging.getLogger(__name__)
 
 
+def get_clone_dir(repo_id: str) -> Path:
+    """Get clone directory path with automatic permission fallback."""
+    base = Path(settings.clone_workspace)
+    try:
+        base.mkdir(parents=True, exist_ok=True)
+        test_file = base / f".write_test_{repo_id}"
+        test_file.touch()
+        test_file.unlink()
+        return base / repo_id
+    except (PermissionError, OSError):
+        import tempfile
+        fallback = Path(tempfile.gettempdir()) / "repos"
+        fallback.mkdir(parents=True, exist_ok=True)
+        return fallback / repo_id
+
+
 def clone_repository(
     owner: str,
     repo: str,
@@ -33,7 +49,7 @@ def clone_repository(
         repo_id: UUID for namespacing the clone directory
         branch: Branch to clone (default: "main")
     """
-    clone_dir = Path(settings.clone_workspace) / repo_id
+    clone_dir = get_clone_dir(repo_id)
     clone_url = f"https://x-access-token:{token}@github.com/{owner}/{repo}.git"
 
     # Clean up any stale clone from a previous failed run
@@ -79,7 +95,7 @@ def get_head_sha(clone_dir: Path) -> str:
 
 def cleanup_clone(repo_id: str) -> None:
     """Remove the temporary clone directory."""
-    clone_dir = Path(settings.clone_workspace) / repo_id
+    clone_dir = get_clone_dir(repo_id)
     if clone_dir.exists():
         shutil.rmtree(clone_dir, ignore_errors=True)
         logger.info("cleaned up clone: %s", clone_dir)
