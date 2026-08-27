@@ -39,23 +39,72 @@ async function setActive(userId, repositoryId, isActive) {
   return repository;
 }
 
+async function runIndexJob({ repositoryId, installationId, owner, repo, branch }) {
+  const { getInstallationToken } = require('../integrations/github/app-auth');
+  const indexerClient = require('../integrations/indexer-service-client');
+  const eventBus = require('./event-bus.service');
+  const logger = require('../utils/logger');
+
+  try {
+    const token = await getInstallationToken(installationId);
+    const result = await indexerClient.requestFullIndex({
+      repoId: repositoryId,
+      owner,
+      repo,
+      token,
+      branch,
+    });
+
+    await db.Repository.update(
+      {
+        indexStatus: 'INDEXED',
+        indexedCommitSha: result.commit_sha,
+        indexedAt: new Date(),
+        fileCount: result.file_count || 0,
+        symbolCount: result.symbol_count || 0,
+        indexError: null,
+      },
+      { where: { id: repositoryId } },
+    );
+
+    eventBus.emitIndexStatusChange({
+      repositoryId,
+      indexStatus: 'INDEXED',
+      fileCount: result.file_count || 0,
+      symbolCount: result.symbol_count || 0,
+    });
+    logger.info({ repositoryId, files: result.file_count, symbols: result.symbol_count }, 'indexing completed successfully');
+  } catch (err) {
+    logger.error({ repositoryId, err: err.message }, 'indexing failed');
+    await db.Repository.update(
+      { indexStatus: 'FAILED', indexError: err.message },
+      { where: { id: repositoryId } },
+    );
+    eventBus.emitIndexError({ repositoryId, error: err.message });
+    eventBus.emitIndexStatusChange({ repositoryId, indexStatus: 'FAILED' });
+  }
+}
+
 async function triggerReindex(userId, repositoryId) {
   const inngest = require('../jobs/client');
+  const eventBus = require('./event-bus.service');
   const repository = await getForUser(userId, repositoryId);
 
   await repository.update({ indexStatus: 'INDEXING', indexError: null });
+  eventBus.emitIndexStatusChange({ repositoryId: repository.id, indexStatus: 'INDEXING' });
 
   const [owner, repoName] = repository.fullName.split('/');
-  await inngest.send({
-    name: 'repo/index.requested',
-    data: {
-      repositoryId: repository.id,
-      installationId: repository.installation.githubInstallationId,
-      owner,
-      repo: repoName,
-      branch: repository.defaultBranch || 'main',
-    },
-  });
+  const jobPayload = {
+    repositoryId: repository.id,
+    installationId: repository.installation.githubInstallationId,
+    owner,
+    repo: repoName,
+    branch: repository.defaultBranch || 'main',
+  };
+
+  // Dispatch via Inngest and also execute in background worker
+  inngest.send({ name: 'repo/index.requested', data: jobPayload }).catch(() => {});
+  runIndexJob(jobPayload).catch(() => {});
 
   return repository;
 }

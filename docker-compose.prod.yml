@@ -117,6 +117,13 @@ services:
     depends_on:
       - api
 
+  inngest:
+    image: inngest/inngest:latest
+    restart: unless-stopped
+    command: inngest dev -u http://api:4000/api/inngest
+    depends_on:
+      - api
+
 volumes:
   postgres_data_prod:
   neo4j_data_prod:
