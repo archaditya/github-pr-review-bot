@@ -10,7 +10,7 @@ const logger = require('../utils/logger');
 function generateKeyPair() {
   const rawKey = `prbot_${crypto.randomBytes(32).toString('hex')}`;
   const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
-  const keyPrefix = rawKey.substring(0, 12);
+  const keyPrefix = rawKey.substring(0, 8);
   return { rawKey, keyHash, keyPrefix };
 }
 

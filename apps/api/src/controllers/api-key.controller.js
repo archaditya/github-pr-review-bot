@@ -18,7 +18,7 @@ async function createKey(req, res, next) {
       });
     }
 
-    const userId = req.user?.id || null;
+    const userId = req.user?.sub || req.user?.id || null;
     const result = await apiKeyService.createApiKey(name.trim(), userId);
 
     // rawKey is returned ONLY here — client must save it

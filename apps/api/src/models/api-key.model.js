@@ -27,7 +27,7 @@ module.exports = (sequelize) => {
         unique: true,
       },
       keyPrefix: {
-        type: DataTypes.STRING(8),
+        type: DataTypes.STRING(16),
         allowNull: false,
       },
       isActive: {
