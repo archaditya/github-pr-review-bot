@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
@@ -15,6 +16,13 @@ import {
   Ban,
   Play,
   RotateCw,
+  Info,
+  Hash,
+  ChevronDown,
+  ChevronRight,
+  TreePine,
+  Workflow,
+  Waypoints,
 } from 'lucide-react';
 import { useRepository } from '@/hooks/use-repository';
 import { useReviewJobs } from '@/hooks/use-review-jobs';
@@ -33,6 +41,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function RepositoryDetailPage() {
   const params = useParams<{ id: string }>();
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
   const { data: repository, isLoading: repoLoading } = useRepository(params.id);
   const { data: jobs, isLoading: jobsLoading } = useReviewJobs(params.id);
   const updateRepository = useUpdateRepository(params.id);
@@ -172,8 +181,83 @@ export default function RepositoryDetailPage() {
           </div>
         </div>
 
+        {/* How Indexing Works — expandable section */}
+        <div className="mt-4 pt-3 border-t border-border">
+          <button
+            onClick={() => setShowHowItWorks((prev) => !prev)}
+            className="flex items-center gap-1.5 text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors w-full"
+          >
+            <Info className="h-3 w-3" />
+            <span>How Indexing Works</span>
+            {showHowItWorks ? (
+              <ChevronDown className="h-3 w-3 ml-auto" />
+            ) : (
+              <ChevronRight className="h-3 w-3 ml-auto" />
+            )}
+          </button>
+
+          {showHowItWorks && (
+            <div className="mt-3 flex flex-col gap-3 text-[11px] text-muted-foreground">
+              {/* Pipeline stages */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="flex flex-col gap-1.5 rounded-md border border-border/60 bg-muted/20 p-3">
+                  <div className="flex items-center gap-1.5 font-mono font-medium text-foreground">
+                    <TreePine className="h-3 w-3 text-primary" />
+                    1. Parse (Tree-sitter)
+                  </div>
+                  <p className="leading-relaxed">
+                    Each source file is parsed using Tree-sitter to build an AST (Abstract Syntax Tree).
+                    Tree-sitter provides <strong className="text-foreground">syntax-level</strong> parsing — functions, classes, imports, exports.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-1.5 rounded-md border border-border/60 bg-muted/20 p-3">
+                  <div className="flex items-center gap-1.5 font-mono font-medium text-foreground">
+                    <Workflow className="h-3 w-3 text-primary" />
+                    2. Extract Symbols
+                  </div>
+                  <p className="leading-relaxed">
+                    From each AST, we extract <strong className="text-foreground">symbols</strong> (functions, classes, variables)
+                    and <strong className="text-foreground">edges</strong> (calls, imports, exports) — the building blocks of the knowledge graph.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-1.5 rounded-md border border-border/60 bg-muted/20 p-3">
+                  <div className="flex items-center gap-1.5 font-mono font-medium text-foreground">
+                    <Waypoints className="h-3 w-3 text-primary" />
+                    3. Build Graph (Neo4j)
+                  </div>
+                  <p className="leading-relaxed">
+                    Symbols and edges are stored in <strong className="text-foreground">Neo4j</strong> as a persistent code knowledge graph.
+                    During PR review, this graph powers blast-radius analysis — callers, callees, affected endpoints.
+                  </p>
+                </div>
+              </div>
+
+              {/* Incremental indexing note */}
+              <div className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-3">
+                <Hash className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-mono font-medium text-foreground">Incremental Indexing (SHA256)</p>
+                  <p className="leading-relaxed mt-1">
+                    Every file&apos;s content is hashed (SHA256). On subsequent pushes to the default branch,
+                    only files where <code className="text-foreground bg-muted px-1 rounded">hash_old ≠ hash_new</code> are re-parsed.
+                    Unchanged files are skipped entirely. Deleted files have their subgraph removed.
+                  </p>
+                </div>
+              </div>
+
+              {/* Clarification */}
+              <p className="text-[10px] text-muted-foreground/60 italic">
+                Note: Tree-sitter provides syntax/AST parsing only. Call-graph resolution and semantic analysis
+                are separate steps built on top of the parsed AST data.
+              </p>
+            </div>
+          )}
+        </div>
+
         {repository.indexedAt && (
-          <div className="mt-4 pt-3 border-t border-border flex items-center gap-1 text-[11px] font-mono text-muted-foreground">
+          <div className="mt-3 pt-3 border-t border-border flex items-center gap-1 text-[11px] font-mono text-muted-foreground">
             <Clock className="h-3 w-3" />
             <span>Last indexed: {new Date(repository.indexedAt).toLocaleString()}</span>
           </div>

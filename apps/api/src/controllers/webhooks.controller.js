@@ -4,6 +4,7 @@ const HANDLERS = {
   pull_request: webhookService.handlePullRequestEvent,
   issue_comment: webhookService.handleIssueCommentEvent,
   installation_repositories: webhookService.handleInstallationRepositoriesEvent,
+  installation: webhookService.handleInstallationEvent,
   push: webhookService.handlePushEvent,
 };
 

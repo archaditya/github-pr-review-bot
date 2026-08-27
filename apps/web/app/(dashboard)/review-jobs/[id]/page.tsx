@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, RotateCw, Ban, Trash2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, RotateCw, Ban, Trash2, AlertCircle, Hash } from 'lucide-react';
 import { useReviewJob } from '@/hooks/use-review-job';
 import {
   useCancelReviewJob,
@@ -11,6 +11,7 @@ import {
 } from '@/hooks/use-review-job-actions';
 import { PipelineStepper } from '@/components/pipeline-stepper';
 import { FindingsList } from '@/components/findings-list';
+import { PipelineActivityLog } from '@/components/pipeline-activity-log';
 import { ConversationThread } from '@/components/conversation-thread';
 import { EmptyState } from '@/components/empty-state';
 import { Button } from '@/components/ui/button';
@@ -130,6 +131,28 @@ export default function ReviewJobDetailPage() {
           >
             Retry Now
           </Button>
+        </div>
+      )}
+
+      {/* Pipeline Activity Log */}
+      {job.events && job.events.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-mono text-xs uppercase tracking-widest text-muted-foreground font-semibold">
+              Pipeline Activity
+            </h2>
+            {job.attemptCount > 1 && (
+              <span className="inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
+                <Hash className="h-3 w-3" />
+                Attempt {job.attemptCount}
+              </span>
+            )}
+          </div>
+          <PipelineActivityLog
+            events={job.events}
+            startedAt={job.startedAt}
+            completedAt={job.completedAt}
+          />
         </div>
       )}
 

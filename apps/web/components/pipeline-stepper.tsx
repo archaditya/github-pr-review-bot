@@ -6,14 +6,14 @@ import type { ReviewJobStatus } from '@/types/api';
  * The steps here reflect the ReviewJob state machine:
  * PENDING -> FETCHING_DIFF -> ANALYZING_IMPACT -> BUILDING_CONTEXT -> GENERATING_REVIEW -> POSTING_COMMENTS -> COMPLETED
  */
-const STEPS: { key: ReviewJobStatus; label: string; aliases?: ReviewJobStatus[] }[] = [
-  { key: 'PENDING', label: 'Queued' },
-  { key: 'FETCHING_DIFF', label: 'Fetch diff' },
-  { key: 'ANALYZING_IMPACT', label: 'Analyze impact', aliases: ['RESOLVING_USAGES'] },
-  { key: 'BUILDING_CONTEXT', label: 'Build context' },
-  { key: 'GENERATING_REVIEW', label: 'Generate review' },
-  { key: 'POSTING_COMMENTS', label: 'Post comment' },
-  { key: 'COMPLETED', label: 'Done' },
+const STEPS: { key: ReviewJobStatus; label: string; description: string; aliases?: ReviewJobStatus[] }[] = [
+  { key: 'PENDING', label: 'Queued', description: 'Waiting for worker' },
+  { key: 'FETCHING_DIFF', label: 'Fetch diff', description: 'Pulling unified diff from GitHub' },
+  { key: 'ANALYZING_IMPACT', label: 'Analyze impact', description: 'Querying code knowledge graph', aliases: ['RESOLVING_USAGES'] },
+  { key: 'BUILDING_CONTEXT', label: 'Build context', description: 'Assembling structural context' },
+  { key: 'GENERATING_REVIEW', label: 'Generate review', description: 'AI analysis with Gemini' },
+  { key: 'POSTING_COMMENTS', label: 'Post comment', description: 'Publishing to GitHub PR' },
+  { key: 'COMPLETED', label: 'Done', description: 'Review complete' },
 ];
 
 export function PipelineStepper({ status }: { status: ReviewJobStatus }) {
@@ -59,6 +59,11 @@ export function PipelineStepper({ status }: { status: ReviewJobStatus }) {
               >
                 {isFailedHere ? 'Failed' : step.label}
               </span>
+              {(isCurrent || isPast) && (
+                <span className="whitespace-nowrap text-[9px] text-muted-foreground/70 font-mono">
+                  {step.description}
+                </span>
+              )}
             </div>
             {index < STEPS.length - 1 && (
               <div className={cn('mx-2 h-px flex-1', isPast ? 'bg-diff-add/50' : 'bg-border')} />

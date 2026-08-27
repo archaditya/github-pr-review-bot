@@ -266,9 +266,69 @@ async function handlePushEvent(payload) {
   return changedFiles.size;
 }
 
+/**
+ * installation.created — triggered when the GitHub App is first installed on an account.
+ * Contains the full list of repositories selected during installation in `payload.repositories`.
+ * This is distinct from `installation_repositories.added` which fires when repos are added
+ * to an existing installation incrementally.
+ */
+async function handleInstallationEvent(payload) {
+  const { action, installation, repositories } = payload;
+
+  if (action !== 'created' || !repositories?.length) return null;
+
+  const existingUser = await db.User.findOne({
+    where: { githubUserId: installation.account.id },
+  });
+
+  const [installationRow] = await db.Installation.findOrCreate({
+    where: { githubInstallationId: installation.id },
+    defaults: {
+      githubInstallationId: installation.id,
+      accountLogin: installation.account.login,
+      installedByUserId: existingUser?.id || null,
+    },
+  });
+
+  // Link user if the installation was created before the user logged in
+  if (existingUser && !installationRow.installedByUserId) {
+    await installationRow.update({ installedByUserId: existingUser.id });
+  }
+
+  for (const repo of repositories) {
+    const [repositoryRow, created] = await db.Repository.findOrCreate({
+      where: { githubRepoId: repo.id },
+      defaults: {
+        installationId: installationRow.id,
+        githubRepoId: repo.id,
+        fullName: repo.full_name,
+        isActive: true,
+      },
+    });
+
+    if (created || repositoryRow.indexStatus === 'NOT_INDEXED') {
+      const [owner, repoName] = repo.full_name.split('/');
+      await inngest.send({
+        name: 'repo/index.requested',
+        data: {
+          repositoryId: repositoryRow.id,
+          installationId: installation.id,
+          owner,
+          repo: repoName,
+          branch: 'main',
+        },
+      });
+      logger.info({ repoId: repositoryRow.id, fullName: repo.full_name }, 'initial indexing triggered via installation');
+    }
+  }
+
+  return repositories.length;
+}
+
 module.exports = {
   handlePullRequestEvent,
   handleIssueCommentEvent,
   handleInstallationRepositoriesEvent,
+  handleInstallationEvent,
   handlePushEvent,
 };
