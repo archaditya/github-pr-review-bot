@@ -9,6 +9,7 @@ const router = Router();
 router.use(requireAuth);
 
 router.get('/', repositoriesController.list);
+router.post('/sync', repositoriesController.sync);
 router.get('/:id', repositoriesController.get);
 router.patch('/:id', validate(updateRepositorySchema), repositoriesController.update);
 router.post('/:id/reindex', repositoriesController.reindex);

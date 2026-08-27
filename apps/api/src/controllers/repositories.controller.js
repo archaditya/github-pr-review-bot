@@ -49,4 +49,13 @@ async function resetIndex(req, res, next) {
   }
 }
 
-module.exports = { list, get, update, reindex, resetIndex };
+async function sync(req, res, next) {
+  try {
+    const repositories = await repositoryService.syncForUser(req.user.sub);
+    res.json({ data: repositories });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { list, get, update, reindex, resetIndex, sync };
