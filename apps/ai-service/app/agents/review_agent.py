@@ -32,7 +32,7 @@ def _build_user_message(
 ) -> str:
     usage_block = (
         "\n\n".join(
-            f"### {item.file} ({item.status or 'modified'})\n```diff\n{item.patch}\n```"
+            f"### {item.file} ({item.status or 'modified'})\n```diff\n{item.patch or ''}\n```"
             for item in usage_context
         )
         or "(no per-file context available)"
@@ -40,7 +40,7 @@ def _build_user_message(
 
     parts = [
         f"Pull request: {pr.owner}/{pr.repo} #{pr.number}\n\n",
-        f"## Full diff\n```diff\n{diff}\n```\n\n",
+        f"## Full diff\n```diff\n{diff or ''}\n```\n\n",
         f"## Per-file context\n{usage_block}",
     ]
 
@@ -54,7 +54,16 @@ def _build_user_message(
         if impact_context.callers:
             impact_parts.append(f"\n### Callers of Changed Code")
             for caller in impact_context.callers[:20]:  # cap to avoid bloating context
-                impact_parts.append(f"- `{caller.name}` in `{caller.file_path}`")
+                if hasattr(caller, "name") and hasattr(caller, "file_path"):
+                    name = caller.name or getattr(caller, "fqn", "unknown")
+                    fpath = caller.file_path or "unknown"
+                elif isinstance(caller, dict):
+                    name = caller.get("name") or caller.get("fqn", "unknown")
+                    fpath = caller.get("file_path", "unknown")
+                else:
+                    name = str(caller)
+                    fpath = "unknown"
+                impact_parts.append(f"- `{name}` in `{fpath}`")
 
         if impact_context.callees:
             impact_parts.append(f"\n### Functions Called by Changed Code\n" + "\n".join(f"- `{c}`" for c in impact_context.callees[:20]))

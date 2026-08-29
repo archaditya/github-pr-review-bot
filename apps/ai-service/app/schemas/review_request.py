@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Union, Any
 
 from pydantic import BaseModel, Field
 
@@ -9,7 +9,7 @@ class ChangedFileContext(BaseModel):
 
     file: str
     status: Optional[str] = None
-    patch: str = ""
+    patch: Optional[str] = ""
 
 
 class PullRequestMeta(BaseModel):
@@ -21,23 +21,23 @@ class PullRequestMeta(BaseModel):
 class CallerInfo(BaseModel):
     """A function/method that calls a changed symbol."""
     fqn: str
-    file_path: str
-    name: str
+    file_path: Optional[str] = ""
+    name: Optional[str] = ""
 
 
 class ImpactContext(BaseModel):
     """Structural impact analysis from the code knowledge graph (Neo4j).
     Populated by the API's graph-impact-analysis step when the repo is indexed."""
     changed_symbols: list[str] = Field(default_factory=list)
-    callers: list[CallerInfo] = Field(default_factory=list)
+    callers: list[Any] = Field(default_factory=list)
     callees: list[str] = Field(default_factory=list)
     affected_endpoints: list[str] = Field(default_factory=list)
     related_tests: list[str] = Field(default_factory=list)
-    affected_files_count: int = 0
+    affected_files_count: Optional[int] = 0
 
 
 class ReviewRequest(BaseModel):
-    diff: str
+    diff: Optional[str] = ""
     usage_context: List[ChangedFileContext] = Field(default_factory=list)
     impact_context: Optional[ImpactContext] = None
     pull_request: PullRequestMeta
