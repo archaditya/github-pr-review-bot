@@ -2,12 +2,13 @@ const db = require('../models');
 const inngest = require('../jobs/client');
 const logger = require('../utils/logger');
 const conversationService = require('./conversation.service');
+const githubPr = require('../integrations/github/pull-request-client');
 const { REVIEW_JOB_STATUSES } = require('../constants/review-job-status');
 
 const HANDLED_PR_ACTIONS = ['opened', 'synchronize', 'reopened'];
 
 /**
- * pull_request.opened / .synchronize / .reopened — the entry point into the review pipeline.
+ * pull_request.opened / .synchronize / .reopened / .closed (merged) — entry point into review & indexing.
  * Does the minimum synchronous work (upsert installation/repo/PR, create a PENDING ReviewJob,
  * emit the event) then returns — the actual pipeline runs in jobs/review-pipeline.job.js
  * (ADR-005). Wrapped in one transaction so a partial write never leaves an orphaned PR
@@ -15,6 +16,55 @@ const HANDLED_PR_ACTIONS = ['opened', 'synchronize', 'reopened'];
  */
 async function handlePullRequestEvent(payload) {
   const { action, pull_request: pr, repository, installation } = payload;
+
+  // Handle PR merge for automatic incremental indexing
+  if (action === 'closed' && pr?.merged) {
+    if (!installation) return null;
+
+    const repositoryRow = await db.Repository.findOne({
+      where: { githubRepoId: repository.id },
+    });
+    if (!repositoryRow || repositoryRow.indexStatus !== 'INDEXED') {
+      return null;
+    }
+
+    const defaultBranch = repository.default_branch || 'main';
+    if (pr.base?.ref !== defaultBranch) {
+      return null;
+    }
+
+    try {
+      const changedFiles = await githubPr.listChangedFiles({
+        installationId: installation.id,
+        owner: repository.owner.login,
+        repo: repository.name,
+        pullNumber: pr.number,
+      });
+
+      const changedPaths = (changedFiles || []).map((f) => f.filename);
+
+      await inngest.send({
+        name: 'repo/push.default-branch',
+        data: {
+          repositoryId: repositoryRow.id,
+          installationId: installation.id,
+          owner: repository.owner.login,
+          repo: repository.name,
+          branch: defaultBranch,
+          changedFiles: changedPaths,
+          headSha: pr.merge_commit_sha || null,
+        },
+      });
+
+      logger.info(
+        { repoId: repositoryRow.id, prNumber: pr.number, changedFiles: changedPaths.length },
+        'incremental indexing triggered via PR merge',
+      );
+    } catch (err) {
+      logger.error({ err, repoId: repositoryRow.id }, 'failed to trigger incremental indexing on PR merge');
+    }
+    return null;
+  }
 
   if (!HANDLED_PR_ACTIONS.includes(action)) {
     logger.info({ action }, 'ignoring unhandled pull_request action');
