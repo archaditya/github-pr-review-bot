@@ -3,7 +3,7 @@ const chatService = require('../services/chat.service');
 async function createSession(req, res, next) {
   try {
     const { id: repositoryId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user?.id || req.user?.sub;
     const { title } = req.body;
 
     const session = await chatService.createSession({ repositoryId, userId, title });
@@ -16,7 +16,7 @@ async function createSession(req, res, next) {
 async function listSessions(req, res, next) {
   try {
     const { id: repositoryId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user?.id || req.user?.sub;
 
     const sessions = await chatService.listSessions({ repositoryId, userId });
     return res.json(sessions);
@@ -28,7 +28,7 @@ async function listSessions(req, res, next) {
 async function getSession(req, res, next) {
   try {
     const { sessionId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user?.id || req.user?.sub;
 
     const session = await chatService.getSessionWithMessages({ sessionId, userId });
     return res.json(session);
@@ -40,7 +40,7 @@ async function getSession(req, res, next) {
 async function deleteSession(req, res, next) {
   try {
     const { sessionId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user?.id || req.user?.sub;
 
     await chatService.deleteSession({ sessionId, userId });
     return res.json({ success: true });
@@ -52,7 +52,7 @@ async function deleteSession(req, res, next) {
 async function sendMessageStream(req, res, next) {
   try {
     const { id: repositoryId, sessionId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user?.id || req.user?.sub;
     const { content } = req.body;
 
     // Set Server-Sent Events headers

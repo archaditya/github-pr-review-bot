@@ -25,7 +25,11 @@ function requireAuth(req, res, next) {
   }
 
   try {
-    req.user = jwt.verify(token, config.auth.jwtSecret);
+    const decoded = jwt.verify(token, config.auth.jwtSecret);
+    req.user = {
+      ...decoded,
+      id: decoded.id || decoded.sub,
+    };
     return next();
   } catch (err) {
     return next(new UnauthorizedError('Invalid or expired token'));
