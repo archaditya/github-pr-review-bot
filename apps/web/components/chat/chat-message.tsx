@@ -4,6 +4,7 @@ import React from 'react';
 import { Bot, User, Clock, Cpu, Compass } from 'lucide-react';
 import { ChatMessageItem } from '@/hooks/use-chat';
 import { CitationChip } from './citation-chip';
+import { MarkdownRenderer } from './markdown-renderer';
 
 interface ChatMessageProps {
   message: ChatMessageItem;
@@ -54,9 +55,9 @@ export function ChatMessage({ message, isStreaming = false }: ChatMessageProps) 
           </div>
         </div>
 
-        {/* Message Body */}
-        <div className="text-sm leading-relaxed whitespace-pre-wrap font-sans text-foreground/95 break-words">
-          {message.content}
+        {/* Message Body with Markdown Rendering */}
+        <div className="text-sm font-sans text-foreground/95 break-words">
+          <MarkdownRenderer content={message.content} />
           {isStreaming && (
             <span className="inline-block w-2 h-4 ml-1 bg-violet-400 animate-pulse align-middle" />
           )}
