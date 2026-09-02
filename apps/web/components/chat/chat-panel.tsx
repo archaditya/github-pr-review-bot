@@ -179,7 +179,7 @@ export function ChatPanel({ repositoryId, repositoryName }: ChatPanelProps) {
                 </h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   Ask architectural questions, trace symbol callers, or inspect endpoints.
-                  Answers are strictly grounded in this codebase's AST Knowledge Graph.
+                  Answers are strictly grounded in this codebase&apos;s AST Knowledge Graph.
                 </p>
               </div>
 
