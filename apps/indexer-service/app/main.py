@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from .api import health, index
+from .api import health, index, query
 from .core.logging import configure_logging
 from .graph.neo4j_client import ensure_indexes, close_driver
 
@@ -47,6 +47,7 @@ app = FastAPI(
 
 app.include_router(health.router)
 app.include_router(index.router, prefix="/index", tags=["index"])
+app.include_router(query.router, prefix="/query", tags=["query"])
 
 
 @app.exception_handler(Exception)

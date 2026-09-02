@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     # OpenAI (ADR-003)
     openai_api_key: str
     openai_model: str = "gpt-4o-mini"
+    openai_fast_model: str = "gpt-4o-mini"
+    openai_deep_model: str = "gpt-4o"
     openai_request_timeout_seconds: int = 30
 
     # Guardrails — see docs/architecture/ADR-003-python-ai-service-boundary.md and
@@ -21,6 +23,8 @@ class Settings(BaseSettings):
     max_diff_tokens: int = 6000
     max_findings: int = 50
     max_conversation_history_messages: int = 20
+    max_chat_history_messages: int = 10
+    max_chat_context_tokens: int = 8000
     max_reply_chars: int = 4000
     max_request_body_bytes: int = 2 * 1024 * 1024  # 2MB
 

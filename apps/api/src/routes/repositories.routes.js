@@ -8,6 +8,9 @@ const router = Router();
 
 router.use(requireAuth);
 
+const chatRoutes = require('./chat.routes');
+router.use('/:id/chat', chatRoutes);
+
 router.get('/', repositoriesController.list);
 router.post('/sync', repositoriesController.sync);
 router.get('/:id', repositoriesController.get);

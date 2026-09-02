@@ -23,6 +23,7 @@ import {
   TreePine,
   Workflow,
   Waypoints,
+  MessageSquareCode,
 } from 'lucide-react';
 import { useRepository } from '@/hooks/use-repository';
 import { useReviewJobs } from '@/hooks/use-review-jobs';
@@ -93,6 +94,17 @@ export default function RepositoryDetailPage() {
               Reset Index
             </Button>
           )}
+
+          <Link href={`/repositories/${repository.id}/chat`}>
+            <Button
+              variant="default"
+              size="sm"
+              className="flex items-center gap-1.5 font-mono text-xs bg-violet-600 hover:bg-violet-700 text-white shadow-sm"
+            >
+              <MessageSquareCode className="h-3.5 w-3.5" />
+              Chat with Repo
+            </Button>
+          </Link>
 
           <Button
             variant="outline"
