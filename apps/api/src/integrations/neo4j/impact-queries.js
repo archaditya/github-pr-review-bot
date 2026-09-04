@@ -80,12 +80,18 @@ async function analyzeImpact(repoId, changedFilePaths) {
     );
 
     const impact = {
-      changedSymbols,
-      callers: callersResult.map((r) => ({ fqn: r.fqn, name: r.name, file_path: r.file_path })),
-      callees: calleesResult.map((r) => r.fqn),
-      affectedEndpoints: endpointsResult.map((r) => r.name),
-      relatedTests: testsResult.map((r) => r.path),
-      affectedFilesCount: affectedFilesResult[0]?.count?.toNumber?.() || affectedFilesResult[0]?.count || 0,
+      changedSymbols: (changedSymbols || []).filter(Boolean),
+      callers: (callersResult || [])
+        .filter((r) => r && (r.fqn || r.name))
+        .map((r) => ({
+          fqn: r.fqn || '',
+          name: r.name || r.fqn || '',
+          file_path: r.file_path || '',
+        })),
+      callees: (calleesResult || []).map((r) => r.fqn).filter(Boolean),
+      affectedEndpoints: (endpointsResult || []).map((r) => r.name || r.fqn).filter(Boolean),
+      relatedTests: (testsResult || []).map((r) => r.path).filter(Boolean),
+      affectedFilesCount: Number(affectedFilesResult[0]?.count?.toNumber?.() || affectedFilesResult[0]?.count || 0),
     };
 
     logger.info(

@@ -25,6 +25,14 @@ app.include_router(conversation.router, prefix="/conversation", tags=["conversat
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
 
 
+from fastapi.exceptions import RequestValidationError
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    logger.error("validation error on %s %s: %s", request.method, request.url.path, exc.errors())
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
+
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Last-resort handler — never leak internals (stack traces, exception messages) in

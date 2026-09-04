@@ -121,13 +121,16 @@ async def generate_review(
     5. Retry (openai timeouts / rate limits only, 2 attempts, exponential backoff) — never
        retries on a schema-validation failure, since that's not a transient error
     """
-    capped_diff, truncated = cap_diff(diff, settings.max_diff_tokens)
-    pr_label = f"{pull_request.owner}/{pull_request.repo}#{pull_request.number}"
+    capped_diff, truncated = cap_diff(diff or "", settings.max_diff_tokens)
+    pr_owner = getattr(pull_request, "owner", "") or "unknown"
+    pr_repo = getattr(pull_request, "repo", "") or "unknown"
+    pr_num = getattr(pull_request, "number", 0) or 0
+    pr_label = f"{pr_owner}/{pr_repo}#{pr_num}"
 
     if truncated:
         logger.warning("diff truncated to fit max_diff_tokens", extra={"pr": pr_label})
 
-    user_message = _build_user_message(capped_diff, usage_context, pull_request, impact_context)
+    user_message = _build_user_message(capped_diff, usage_context or [], pull_request, impact_context)
 
     try:
         raw = await _call_model(user_message)

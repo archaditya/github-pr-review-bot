@@ -24,7 +24,7 @@ const envSchema = z.object({
   WEB_APP_URL: z.string().url().default('http://localhost:3000'),
 
   AI_SERVICE_BASE_URL: z.string().url().default('http://ai-service:8000'),
-  AI_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
+  AI_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(90000),
   AI_SERVICE_CB_FAILURE_THRESHOLD: z.coerce.number().int().positive().default(5),
   AI_SERVICE_CB_RESET_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
 

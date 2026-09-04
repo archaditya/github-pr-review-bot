@@ -26,18 +26,31 @@ async function transitionStatus(reviewJobId, status, { error, detail, step } = {
 
   await reviewJob.update(patch);
 
-  await db.JobEvent.create({
-    reviewJobId,
-    step: step || status.toLowerCase(),
-    status: error ? 'failed' : 'succeeded',
-    detail: detail || null,
+  const eventStep = step || status.toLowerCase();
+
+  // Avoid creating duplicate identical succeeded/in-progress events if Inngest retried the same step
+  const lastEvent = await db.JobEvent.findOne({
+    where: { reviewJobId },
+    order: [['createdAt', 'DESC']],
   });
+
+  if (!lastEvent || lastEvent.step !== eventStep || error) {
+    await db.JobEvent.create({
+      reviewJobId,
+      step: eventStep,
+      status: error ? 'failed' : 'succeeded',
+      detail: detail || null,
+    });
+  } else if (detail) {
+    // If re-entering with new detail, update the last event
+    await lastEvent.update({ detail });
+  }
 
   // Emit real-time event for WebSocket broadcast
   eventBus.emitReviewStatusChange({
     reviewJobId,
     status,
-    step: step || status.toLowerCase(),
+    step: eventStep,
     detail: detail || null,
   });
 
@@ -59,18 +72,23 @@ async function fetchDiffContext({ installationId, owner, repo, pullNumber }) {
  * diff — tracked as a known MVP limitation, see docs/architecture/data-model.md.
  */
 function resolveUsageContext(changedFiles) {
+  if (!Array.isArray(changedFiles)) return [];
   return changedFiles.map((file) => ({
-    file: file.filename,
-    status: file.status,
-    patch: file.patch || '',
+    file: file.filename || file.file || 'unknown',
+    status: file.status || 'modified',
+    patch: typeof file.patch === 'string' ? file.patch : '',
   }));
 }
 
 async function generateFindings({ diff, usageContext, impactContext, pr }) {
   const reviewContext = {
-    diff,
-    usage_context: usageContext,
-    pull_request: pr,
+    diff: typeof diff === 'string' ? diff : (diff ? JSON.stringify(diff) : ''),
+    usage_context: Array.isArray(usageContext) ? usageContext : [],
+    pull_request: {
+      owner: String(pr?.owner || ''),
+      repo: String(pr?.repo || ''),
+      number: Number(pr?.number || 0),
+    },
   };
 
   // Attach structural impact context when available (from code knowledge graph)

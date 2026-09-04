@@ -17,12 +17,26 @@ function getBreaker(endpointName, path) {
     errorThresholdPercentage: 50,
     volumeThreshold: config.aiService.circuitBreaker.failureThreshold,
     resetTimeout: config.aiService.circuitBreaker.resetTimeoutMs,
+    errorFilter: (err) => {
+      // 4xx errors (client errors: 400, 422, etc.) are request issues, NOT service outages.
+      // They must NOT count towards tripping the circuit breaker!
+      return err.statusCode >= 400 && err.statusCode < 500;
+    },
   });
 
   // When the circuit is open (or the call times out), fail fast with a typed error the
   // calling service maps to ReviewJob.status = RETRYING/FAILED — never a raw 500.
-  breaker.fallback(() => {
-    throw new AiServiceUnavailableError(`ai-service (${endpointName}) is unavailable`);
+  // Never mask 4xx client errors behind a generic 503 AiServiceUnavailableError.
+  breaker.fallback((payload, err) => {
+    if (err && err.statusCode && err.statusCode >= 400 && err.statusCode < 500) {
+      throw err;
+    }
+    if (breaker.opened) {
+      throw new AiServiceUnavailableError(`ai-service (${endpointName}) circuit breaker is OPEN`);
+    }
+    throw new AiServiceUnavailableError(
+      `ai-service (${endpointName}) is unavailable: ${err?.message || 'unknown error'}`
+    );
   });
 
   breaker.on('open', () => logger.warn({ endpoint: endpointName }, 'ai-service circuit opened'));
