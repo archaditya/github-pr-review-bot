@@ -88,6 +88,14 @@ services:
       target: prod
     restart: unless-stopped
     env_file: ./secrets/api.env
+    environment:
+      # Required: we self-host Inngest via `inngest dev`, not Inngest Cloud.
+      # Without this, the SDK rejects the dev server's sync requests (PUT 400:
+      # "Expected server kind cloud, got dev") and functions never register.
+      # Setting http://inngest:8288 also ensures inngest.send() routes events
+      # to the inngest container rather than defaulting to 127.0.0.1:8288.
+      - INNGEST_DEV=http://inngest:8288
+      - INNGEST_BASE_URL=http://inngest:8288
     ports:
       - "${API_PORT:-4050}:4000"
     depends_on:
