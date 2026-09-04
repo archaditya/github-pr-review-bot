@@ -26,7 +26,7 @@ async function listForRepository(userId, repositoryId, { limit = 20, cursor } = 
         model: db.PullRequest,
         as: 'pullRequest',
         where: { repositoryId },
-        attributes: ['id', 'githubPrNumber', 'title', 'authorLogin'],
+        attributes: ['id', 'githubPrNumber', 'title', 'authorLogin', 'headSha'],
       },
     ],
     order: [['createdAt', 'DESC']],
@@ -50,6 +50,15 @@ async function getById(userId, reviewJobId) {
             as: 'repository',
             include: [{ model: db.Installation, as: 'installation' }],
           },
+          {
+            model: db.ReviewJob,
+            as: 'reviewJobs',
+            include: [
+              { model: db.ReviewComment, as: 'summaryComment' },
+              { model: db.ConversationMessage, as: 'conversationMessages' },
+              { model: db.JobEvent, as: 'events' },
+            ],
+          },
         ],
       },
       { model: db.ReviewComment, as: 'summaryComment' },
@@ -63,11 +72,7 @@ async function getById(userId, reviewJobId) {
   });
 
   if (!job) throw new NotFoundError('Review job not found');
-
-  const ownerId = job.pullRequest.repository.installation.installedByUserId;
-  if (ownerId !== userId) {
-    throw new ForbiddenError('You do not have access to this review job');
-  }
+  await repositoryService.getForUser(userId, job.pullRequest.repository.id);
 
   return job;
 }

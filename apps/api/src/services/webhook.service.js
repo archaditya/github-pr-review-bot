@@ -133,7 +133,14 @@ async function handlePullRequestEvent(payload) {
         reviewJobId: job.id,
         step: 'webhook_received',
         status: 'succeeded',
-        detail: { action, installationId: installation.id, repository: repository.full_name },
+        detail: {
+          action,
+          installationId: installation.id,
+          repository: repository.full_name,
+          headSha: pr.head.sha,
+          baseSha: pr.base.sha,
+          commitTitle: pr.title,
+        },
       },
       { transaction },
     );

@@ -52,6 +52,9 @@ export interface PullRequestSummary {
   githubPrNumber: number;
   title: string;
   authorLogin: string;
+  headSha?: string;
+  baseSha?: string;
+  reviewJobs?: ReviewJobDetail[];
 }
 
 export interface ReviewJob {
