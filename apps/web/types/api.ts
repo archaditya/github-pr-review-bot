@@ -54,6 +54,8 @@ export interface PullRequestSummary {
   authorLogin: string;
   headSha?: string;
   baseSha?: string;
+  createdAt?: string;
+  updatedAt?: string;
   reviewJobs?: ReviewJobDetail[];
 }
 

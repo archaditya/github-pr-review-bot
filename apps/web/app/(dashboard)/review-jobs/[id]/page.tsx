@@ -105,7 +105,7 @@ export default function ReviewJobDetailPage() {
           <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground font-mono">
             <span>Author: @{job.pullRequest?.authorLogin}</span>
             <span>&bull;</span>
-            <span>PR Created: {new Date(job.pullRequest?.createdAt || job.createdAt).toLocaleString()}</span>
+            <span>Created: {new Date(job.createdAt).toLocaleString()}</span>
             {job.pullRequest?.headSha && (
               <>
                 <span>&bull;</span>
