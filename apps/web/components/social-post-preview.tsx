@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCircle2, AlertCircle, Twitter, Linkedin, ImageIcon, Loader2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Twitter, Linkedin, ImageIcon, Loader2, Send } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,8 @@ interface SocialPostPreviewProps {
   post: SocialPost;
   onUpdateText: (editedText: string) => void;
   onUpdateImage: (imageUrl: string | null) => void;
+  onPublish?: () => void;
+  isPublishing?: boolean;
   isUpdating?: boolean;
 }
 
@@ -40,7 +42,14 @@ const STATUS_CONFIG = {
   failed: { label: 'Failed', variant: 'outline' as const, className: 'border-destructive/30 text-destructive' },
 } as const;
 
-export function SocialPostPreview({ post, onUpdateText, onUpdateImage, isUpdating }: SocialPostPreviewProps) {
+export function SocialPostPreview({
+  post,
+  onUpdateText,
+  onUpdateImage,
+  onPublish,
+  isPublishing,
+  isUpdating,
+}: SocialPostPreviewProps) {
   const platform = PLATFORM_CONFIG[post.platform];
   const statusCfg = STATUS_CONFIG[post.status];
   const currentText = post.editedText ?? post.draftText;
@@ -225,6 +234,38 @@ export function SocialPostPreview({ post, onUpdateText, onUpdateImage, isUpdatin
             {post.publishedAt && ` • ${new Date(post.publishedAt).toLocaleString()}`}
           </div>
         )}
+
+        {/* Card Level Action Footer */}
+        <div className="flex items-center justify-between pt-3 mt-1 border-t border-border/30">
+          {post.status === 'published' ? (
+            <div className="flex items-center gap-1.5 text-xs text-diff-add font-mono font-medium">
+              <CheckCircle2 className="h-4 w-4" />
+              <span>Live on {platform.label}</span>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between w-full gap-2">
+              <span className="text-[11px] font-mono text-muted-foreground">
+                {post.status === 'failed' ? 'Failed to post' : 'Draft ready'}
+              </span>
+              {onPublish && (
+                <Button
+                  size="sm"
+                  variant={post.status === 'failed' ? 'destructive' : 'outline'}
+                  onClick={onPublish}
+                  disabled={isPublishing}
+                  className="font-mono text-xs gap-1.5 h-8"
+                >
+                  {isPublishing ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Send className="h-3.5 w-3.5" />
+                  )}
+                  {post.status === 'failed' ? 'Retry Post' : `Post to ${platform.label}`}
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

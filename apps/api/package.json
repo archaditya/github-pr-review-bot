@@ -28,6 +28,7 @@
     "helmet": "^7.1.0",
     "inngest": "^3.19.0",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.3.0",
     "neo4j-driver": "^5.27.0",
     "openai": "^4.52.0",
     "opossum": "^8.1.4",
