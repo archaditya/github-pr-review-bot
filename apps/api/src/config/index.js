@@ -52,6 +52,20 @@ const config = {
 
   indexerServiceUrl: process.env.INDEXER_SERVICE_URL || 'http://indexer-service:8001',
 
+  social: {
+    x: {
+      apiKey: env.X_API_KEY,
+      apiSecret: env.X_API_SECRET,
+      accessToken: env.X_ACCESS_TOKEN,
+      accessSecret: env.X_ACCESS_SECRET,
+    },
+    linkedin: {
+      accessToken: env.LINKEDIN_ACCESS_TOKEN,
+      personUrn: env.LINKEDIN_PERSON_URN,
+    },
+    openaiApiKey: env.OPENAI_API_KEY,
+  },
+
   redis: {
     url: process.env.REDIS_URL || 'redis://redis:6379',
   },

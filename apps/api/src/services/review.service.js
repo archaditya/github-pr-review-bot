@@ -100,7 +100,7 @@ async function generateFindings({ diff, usageContext, impactContext, pr }) {
   return result.findings || [];
 }
 
-function renderSummaryBody(findings) {
+function renderSummaryBody(findings, { reviewJobId } = {}) {
   if (!findings || findings.length === 0) {
     return '### AI Review Summary\n\nNo issues found.';
   }
@@ -113,13 +113,27 @@ function renderSummaryBody(findings) {
     return line;
   });
 
-  return [
+  const dashboardUrl = config.webAppUrl || 'https://pr-review-bot.archadi.dev';
+  const jobPath = reviewJobId ? `/review-jobs/${reviewJobId}` : '';
+
+  const parts = [
     '### AI Review Summary',
     '',
     ...lines,
     '',
     `_Reply with @${config.github.botHandle} to ask about this review._`,
-  ].join('\n');
+  ];
+
+  // Add deep-links to dashboard actions
+  if (reviewJobId) {
+    parts.push(
+      '',
+      '---',
+      `[🔀 Merge PR →](${dashboardUrl}${jobPath}?action=merge)  |  [📝 Make Post →](${dashboardUrl}${jobPath}?action=post)`,
+    );
+  }
+
+  return parts.join('\n');
 }
 
 async function postSummaryAndPersist({
@@ -130,7 +144,7 @@ async function postSummaryAndPersist({
   pullNumber,
   findings,
 }) {
-  const body = renderSummaryBody(findings);
+  const body = renderSummaryBody(findings, { reviewJobId });
   const posted = await githubComments.postSummaryComment({
     installationId,
     owner,

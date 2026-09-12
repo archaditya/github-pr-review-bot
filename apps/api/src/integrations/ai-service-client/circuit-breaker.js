@@ -65,4 +65,11 @@ async function generateConversationReply(conversationContext) {
   return getBreaker('conversation.reply', '/conversation/reply').fire(conversationContext);
 }
 
-module.exports = { generateReview, generateConversationReply };
+/**
+ * PR/standalone context -> social post drafts (X + LinkedIn).
+ */
+async function generateSocialDrafts(socialContext) {
+  return getBreaker('social.generate', '/social/generate-drafts').fire(socialContext);
+}
+
+module.exports = { generateReview, generateConversationReply, generateSocialDrafts };

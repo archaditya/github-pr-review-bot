@@ -119,3 +119,32 @@ export interface ApiKey {
   createdAt: string;
   rawKey?: string;
 }
+
+export type SocialPlatform = 'x' | 'linkedin';
+export type SocialPostStatus = 'draft' | 'approved' | 'published' | 'failed';
+
+export interface SocialPost {
+  id: string;
+  pullRequestId: string | null;
+  platform: SocialPlatform;
+  draftText: string;
+  editedText: string | null;
+  imageUrl: string | null;
+  status: SocialPostStatus;
+  publishedAt: string | null;
+  externalPostId: string | null;
+  error: string | null;
+  standaloneInput: string | null;
+  repoContext: string | null;
+  createdAt: string;
+  updatedAt: string;
+  pullRequest?: PullRequestSummary | null;
+}
+
+export interface PublishResult {
+  id: string;
+  platform: SocialPlatform;
+  status: 'published' | 'failed';
+  error?: string;
+}
+

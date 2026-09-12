@@ -3,7 +3,7 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from .api import chat, conversation, health, review
+from .api import chat, conversation, health, review, social
 from .core.logging import configure_logging
 from .core.middleware import BodySizeLimitMiddleware, RequestLoggingMiddleware
 
@@ -23,6 +23,7 @@ app.include_router(health.router)
 app.include_router(review.router, prefix="/review", tags=["review"])
 app.include_router(conversation.router, prefix="/conversation", tags=["conversation"])
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
+app.include_router(social.router, prefix="/social", tags=["social"])
 
 
 from fastapi.exceptions import RequestValidationError

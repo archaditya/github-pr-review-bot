@@ -11,6 +11,10 @@ module.exports = (sequelize) => {
         foreignKey: 'pullRequestId',
         as: 'reviewJobs',
       });
+      PullRequest.hasMany(models.SocialPost, {
+        foreignKey: 'pullRequestId',
+        as: 'socialPosts',
+      });
     }
   }
 

@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
   RotateCw,
@@ -12,9 +12,12 @@ import {
   Hash,
   GitCommit,
   GitPullRequest,
+  GitMerge,
   CheckCircle2,
   Clock,
   Layers,
+  Loader2,
+  PenSquare,
 } from 'lucide-react';
 import { useReviewJob } from '@/hooks/use-review-job';
 import {
@@ -22,10 +25,12 @@ import {
   useDeleteReviewJob,
   useRetryReviewJob,
 } from '@/hooks/use-review-job-actions';
+import { useMergePR } from '@/hooks/use-merge-pr';
 import { PipelineStepper } from '@/components/pipeline-stepper';
 import { FindingsList } from '@/components/findings-list';
 import { PipelineActivityLog } from '@/components/pipeline-activity-log';
 import { ConversationThread } from '@/components/conversation-thread';
+import { SocialPostPanel } from '@/components/social-post-panel';
 import { StatusBadge } from '@/components/status-badge';
 import { EmptyState } from '@/components/empty-state';
 import { Button } from '@/components/ui/button';
@@ -43,11 +48,23 @@ function formatDuration(ms: number): string {
 export default function ReviewJobDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: job, isLoading } = useReviewJob(params.id);
 
   const cancelJob = useCancelReviewJob();
   const deleteJob = useDeleteReviewJob();
   const retryJob = useRetryReviewJob();
+  const mergePR = useMergePR();
+
+  const [showSocialPanel, setShowSocialPanel] = useState(false);
+  const [mergeConfirm, setMergeConfirm] = useState(false);
+
+  // Handle deep-link query params from GitHub comments
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'post') setShowSocialPanel(true);
+    if (action === 'merge') setMergeConfirm(true);
+  }, [searchParams]);
 
   // All runs for this PR (ordered newest first)
   const runs: ReviewJobDetail[] = useMemo(() => {
@@ -134,8 +151,90 @@ export default function ReviewJobDetailPage() {
             <RotateCw className={`h-3.5 w-3.5 ${retryJob.isPending ? 'animate-spin' : ''}`} />
             {retryJob.isPending ? 'Re-triggering...' : 'Re-run Review'}
           </Button>
+
+          {/* Merge PR */}
+          {!mergeConfirm ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMergeConfirm(true)}
+              disabled={mergePR.isPending || mergePR.isSuccess}
+              className="flex items-center gap-1.5 font-mono text-xs border-purple-500/30 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300"
+            >
+              {mergePR.isSuccess ? (
+                <><CheckCircle2 className="h-3.5 w-3.5" /> Merged</>
+              ) : (
+                <><GitMerge className="h-3.5 w-3.5" /> Merge PR</>
+              )}
+            </Button>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (job.pullRequest?.id) {
+                    mergePR.mutate({ pullRequestId: job.pullRequest.id });
+                  }
+                  setMergeConfirm(false);
+                }}
+                disabled={mergePR.isPending || !job.pullRequest?.id}
+                className="flex items-center gap-1.5 font-mono text-xs bg-purple-600 hover:bg-purple-700"
+              >
+                {mergePR.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <GitMerge className="h-3.5 w-3.5" />
+                )}
+                Confirm Merge
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setMergeConfirm(false)}
+                className="font-mono text-xs"
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
+
+          {/* Make Post */}
+          <Button
+            size="sm"
+            onClick={() => setShowSocialPanel((v) => !v)}
+            className={`flex items-center gap-1.5 font-mono text-xs ${
+              showSocialPanel
+                ? 'bg-primary/20 text-primary border border-primary/30'
+                : 'bg-gradient-to-r from-primary/90 to-[#0A66C2] hover:opacity-90'
+            }`}
+            variant={showSocialPanel ? 'outline' : 'default'}
+          >
+            <PenSquare className="h-3.5 w-3.5" />
+            {showSocialPanel ? 'Hide Posts' : 'Make Post'}
+          </Button>
         </div>
       </div>
+
+      {/* Merge feedback */}
+      {mergePR.isSuccess && (
+        <div className="flex items-center gap-2 rounded-lg border border-purple-500/30 bg-purple-500/5 p-3 text-sm text-purple-400 font-mono">
+          <CheckCircle2 className="h-4 w-4" />
+          PR merged successfully!
+        </div>
+      )}
+      {mergePR.isError && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive font-mono">
+          <AlertCircle className="h-4 w-4" />
+          Merge failed: {mergePR.error?.message || 'Unknown error'}
+        </div>
+      )}
+
+      {/* Social Post Panel */}
+      {showSocialPanel && job.pullRequest?.id && (
+        <div className="border-t border-border pt-6">
+          <SocialPostPanel pullRequestId={job.pullRequest.id} />
+        </div>
+      )}
 
       {/* Quick Jump Bar for Multiple Runs */}
       {runs.length > 1 && (

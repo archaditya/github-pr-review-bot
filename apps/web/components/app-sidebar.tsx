@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LogOut, PanelLeftClose, PanelLeftOpen, Key, GitFork, Radio } from 'lucide-react';
+import { LogOut, PanelLeftClose, PanelLeftOpen, Key, GitFork, Radio, PenSquare } from 'lucide-react';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useRepositories } from '@/hooks/use-repositories';
 import { useWebSocket } from '@/hooks/use-web-socket';
@@ -60,6 +60,20 @@ export function AppSidebar() {
           >
             <GitFork className="h-4 w-4 shrink-0" />
             {!sidebarCollapsed && <span>Dashboard</span>}
+          </Link>
+
+          <Link
+            href="/create-post"
+            className={cn(
+              'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+              pathname === '/create-post'
+                ? 'bg-primary/10 text-primary'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+            )}
+            title="Create Social Post"
+          >
+            <PenSquare className="h-4 w-4 shrink-0" />
+            {!sidebarCollapsed && <span>Create Post</span>}
           </Link>
 
           <Link

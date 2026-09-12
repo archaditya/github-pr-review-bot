@@ -5,6 +5,8 @@ const authRoutes = require('./auth.routes');
 const repositoryRoutes = require('./repositories.routes');
 const reviewJobRoutes = require('./review-jobs.routes');
 const apiKeyRoutes = require('./api-keys.routes');
+const socialRoutes = require('./social.routes');
+const mergeRoutes = require('./merge.routes');
 
 const router = Router();
 
@@ -14,5 +16,8 @@ router.use('/auth', authRoutes);
 router.use('/repositories', repositoryRoutes);
 router.use('/review-jobs', reviewJobRoutes);
 router.use('/api-keys', apiKeyRoutes);
+router.use('/social-posts', socialRoutes);
+router.use('/pull-requests', mergeRoutes);
 
 module.exports = router;
+

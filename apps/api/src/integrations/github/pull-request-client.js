@@ -46,4 +46,19 @@ async function listChangedFiles({ installationId, owner, repo, pullNumber }) {
   return data || [];
 }
 
-module.exports = { getPullRequest, getPullRequestDiff, listChangedFiles };
+/**
+ * Merge a pull request via the GitHub API.
+ * Requires the GitHub App to have `contents: write` permission.
+ */
+async function mergePullRequest({ installationId, owner, repo, pullNumber, mergeMethod = 'merge' }) {
+  const octokit = await getInstallationOctokit(installationId);
+  const { data } = await octokit.request('PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge', {
+    owner,
+    repo,
+    pull_number: pullNumber,
+    merge_method: mergeMethod,
+  });
+  return data;
+}
+
+module.exports = { getPullRequest, getPullRequestDiff, listChangedFiles, mergePullRequest };

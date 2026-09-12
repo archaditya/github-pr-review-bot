@@ -1,3 +1,3 @@
-const { generateReview, generateConversationReply } = require('./circuit-breaker');
+const { generateReview, generateConversationReply, generateSocialDrafts } = require('./circuit-breaker');
 
-module.exports = { generateReview, generateConversationReply };
+module.exports = { generateReview, generateConversationReply, generateSocialDrafts };

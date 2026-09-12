@@ -33,6 +33,15 @@ const envSchema = z.object({
 
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 
+  // Social media integrations (optional — features degrade gracefully if absent)
+  X_API_KEY: z.string().optional(),
+  X_API_SECRET: z.string().optional(),
+  X_ACCESS_TOKEN: z.string().optional(),
+  X_ACCESS_SECRET: z.string().optional(),
+  LINKEDIN_ACCESS_TOKEN: z.string().optional(),
+  LINKEDIN_PERSON_URN: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(), // used by ai-service for DALL·E image generation
+
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
 });
 
