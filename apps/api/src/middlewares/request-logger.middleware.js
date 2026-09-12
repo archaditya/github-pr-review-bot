@@ -19,9 +19,12 @@ const requestLogger = pinoHttp({
     if (res.statusCode >= 400) return 'warn';
     return 'info';
   },
-  // don't spam logs with health check polling
+  // don't spam logs with health check polling or inngest worker sync heartbeats
   autoLogging: {
-    ignore: (req) => req.url === '/health' || req.url === '/health/ready',
+    ignore: (req) =>
+      req.url === '/health' ||
+      req.url === '/health/ready' ||
+      req.url.startsWith('/api/inngest'),
   },
 });
 

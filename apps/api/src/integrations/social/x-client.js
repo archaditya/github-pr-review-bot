@@ -73,10 +73,22 @@ async function postTweet({ text, imageUrl }) {
     tweetPayload.media = { media_ids: [mediaId] };
   }
 
-  const result = await rwClient.v2.tweet(tweetPayload);
-
-  logger.info({ tweetId: result.data.id }, 'tweet posted to X');
-  return { tweetId: result.data.id };
+  try {
+    const result = await rwClient.v2.tweet(tweetPayload);
+    logger.info({ tweetId: result.data.id }, 'tweet posted to X');
+    return { tweetId: result.data.id };
+  } catch (err) {
+    const detail =
+      err.data?.detail ||
+      err.data?.title ||
+      err.errors?.[0]?.message ||
+      err.message;
+    logger.error(
+      { err: detail, code: err.code, status: err.status, data: err.data },
+      'failed to post tweet to X',
+    );
+    throw new Error(`X API (${err.code || err.status || 'error'}): ${detail}`);
+  }
 }
 
 module.exports = { postTweet };
