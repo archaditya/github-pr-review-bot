@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Sparkles,
   Send,
@@ -10,6 +10,7 @@ import {
   Twitter,
   Linkedin,
   X,
+  Upload,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,11 +24,11 @@ import {
 
 const REPO_OPTIONS = [
   { value: '', label: 'General / No specific project' },
+  { value: 'github-pr-review-bot', label: 'PR Review Bot — DevTools' },
   { value: 'bytevault', label: 'ByteVault — File Management' },
   { value: 'bytevault-fe', label: 'ByteVault Frontend' },
   { value: 'verkin', label: 'Verkin — Social Media' },
   { value: 'course-bot', label: 'Course Bot — AI Education' },
-  { value: 'github-pr-review-bot', label: 'PR Review Bot — DevTools' },
   { value: 'vps-infra-configs', label: 'Infrastructure' },
 ];
 
@@ -35,6 +36,8 @@ export default function CreatePostPage() {
   const [input, setInput] = useState('');
   const [repoContext, setRepoContext] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [fileName, setFileName] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const generateDrafts = useGenerateStandaloneDrafts();
   const updateDraft = useUpdateSocialDraft();
@@ -44,6 +47,27 @@ export default function CreatePostPage() {
   const generatedPosts = generateDrafts.data;
   const hasDrafts = generatedPosts && generatedPosts.length > 0;
   const draftPosts = generatedPosts?.filter((p) => p.status === 'draft') || [];
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      alert('File size must be under 8MB');
+      return;
+    }
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImageUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleRemoveImage() {
+    setImageUrl('');
+    setFileName('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
 
   function handleGenerate() {
     if (!input.trim()) return;
@@ -65,6 +89,8 @@ export default function CreatePostPage() {
     setInput('');
     setRepoContext('');
     setImageUrl('');
+    setFileName('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
     generateDrafts.reset();
   }
 
@@ -96,7 +122,7 @@ export default function CreatePostPage() {
             className="w-full rounded-lg border border-border bg-background p-4 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/50"
           />
 
-          {/* Project context */}
+          {/* Project context & Image */}
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
               <label className="block text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1.5">
@@ -115,24 +141,45 @@ export default function CreatePostPage() {
               </select>
             </div>
 
-            {/* Image URL */}
+            {/* Image (Upload or URL) */}
             <div className="flex-1">
               <label className="block text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1.5">
-                Image URL (optional)
+                Image (Upload file or URL)
               </label>
               <div className="flex gap-2">
                 <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="shrink-0 font-mono text-xs flex items-center gap-1.5"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  {fileName ? 'Change' : 'Upload'}
+                </Button>
+                <input
                   type="url"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://... or leave empty for AI-generated"
+                  value={fileName ? `[File: ${fileName}]` : imageUrl}
+                  onChange={(e) => {
+                    setFileName('');
+                    setImageUrl(e.target.value);
+                  }}
+                  readOnly={!!fileName}
+                  placeholder="Or paste https:// image URL..."
                   className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/50"
                 />
                 {imageUrl && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setImageUrl('')}
+                    onClick={handleRemoveImage}
                     className="shrink-0"
                   >
                     <X className="h-3.5 w-3.5" />
@@ -144,16 +191,25 @@ export default function CreatePostPage() {
 
           {/* Image preview */}
           {imageUrl && (
-            <div className="rounded-lg overflow-hidden border border-border/40 max-h-48">
+            <div className="relative rounded-lg overflow-hidden border border-border/40 max-h-56 bg-black/20 flex items-center justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={imageUrl}
                 alt="Post image preview"
-                className="w-full h-48 object-cover"
+                className="max-h-56 w-auto object-contain rounded-md"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';
                 }}
               />
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleRemoveImage}
+                className="absolute top-2 right-2 text-xs font-mono h-7 px-2 bg-background/80 hover:bg-background"
+              >
+                <X className="h-3.5 w-3.5 mr-1" />
+                Remove
+              </Button>
             </div>
           )}
 

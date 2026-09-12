@@ -84,34 +84,85 @@ export function SocialPostPreview({ post, onUpdateText, onUpdateImage, isUpdatin
               alt="Post image"
               className="w-full h-40 object-cover"
             />
-            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+              <input
+                type="file"
+                id={`file-replace-${post.id}`}
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (file.size > 8 * 1024 * 1024) {
+                    alert('File size must be under 8MB');
+                    return;
+                  }
+                  const reader = new FileReader();
+                  reader.onloadend = () => onUpdateImage(reader.result as string);
+                  reader.readAsDataURL(file);
+                }}
+              />
               <Button
                 variant="outline"
                 size="sm"
-                className="text-white border-white/40 hover:bg-white/20"
-                onClick={() => {
-                  const url = prompt('Enter new image URL (or leave empty to remove):');
-                  if (url !== null) onUpdateImage(url || null);
-                }}
+                className="text-white border-white/40 hover:bg-white/20 text-xs font-mono"
+                onClick={() => document.getElementById(`file-replace-${post.id}`)?.click()}
               >
                 <ImageIcon className="h-3 w-3 mr-1" />
-                Replace
+                Upload New
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="text-xs font-mono"
+                onClick={() => onUpdateImage(null)}
+              >
+                Remove
               </Button>
             </div>
           </div>
         )}
 
         {!post.imageUrl && (
-          <button
-            onClick={() => {
-              const url = prompt('Enter image URL:');
-              if (url) onUpdateImage(url);
-            }}
-            className="flex items-center justify-center gap-2 h-24 rounded-lg border border-dashed border-border/60 text-xs font-mono text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors"
-          >
-            <ImageIcon className="h-4 w-4" />
-            Add Image
-          </button>
+          <div>
+            <input
+              type="file"
+              id={`file-add-${post.id}`}
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (file.size > 8 * 1024 * 1024) {
+                  alert('File size must be under 8MB');
+                  return;
+                }
+                const reader = new FileReader();
+                reader.onloadend = () => onUpdateImage(reader.result as string);
+                reader.readAsDataURL(file);
+              }}
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => document.getElementById(`file-add-${post.id}`)?.click()}
+                className="flex-1 flex items-center justify-center gap-2 h-20 rounded-lg border border-dashed border-border/60 text-xs font-mono text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors"
+              >
+                <ImageIcon className="h-4 w-4" />
+                Upload Image File
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const url = prompt('Or enter image URL:');
+                  if (url) onUpdateImage(url);
+                }}
+                className="px-3 flex items-center justify-center rounded-lg border border-border/60 text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Paste URL
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Text editor */}

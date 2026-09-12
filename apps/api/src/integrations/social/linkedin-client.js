@@ -62,14 +62,28 @@ async function uploadImage(imageUrl) {
     ].uploadUrl;
   const asset = registerResponse.data.value.asset;
 
-  // Step 2: Download image from URL
-  const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+  // Step 2: Get image binary
+  let imageBuffer;
+  let contentType = 'image/png';
+
+  if (imageUrl.startsWith('data:')) {
+    const mimeMatch = imageUrl.match(/^data:([^;]+);base64,/);
+    if (mimeMatch) contentType = mimeMatch[1];
+    const base64Data = imageUrl.replace(/^data:[^;]+;base64,/, '');
+    imageBuffer = Buffer.from(base64Data, 'base64');
+  } else {
+    const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+    imageBuffer = imageResponse.data;
+    if (imageResponse.headers['content-type']) {
+      contentType = imageResponse.headers['content-type'];
+    }
+  }
 
   // Step 3: Upload image binary to LinkedIn
-  await axios.put(uploadUrl, imageResponse.data, {
+  await axios.put(uploadUrl, imageBuffer, {
     headers: {
       ...headers,
-      'Content-Type': 'image/png',
+      'Content-Type': contentType,
     },
   });
 

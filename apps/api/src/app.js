@@ -41,7 +41,7 @@ app.use(
 // object, or the HMAC won't match.
 app.use(
   express.json({
-    limit: '2mb',
+    limit: '10mb',
     verify: (req, res, buf) => {
       req.rawBody = buf;
     },

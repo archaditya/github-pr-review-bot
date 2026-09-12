@@ -39,21 +39,30 @@ async function postTweet({ text, imageUrl }) {
   let mediaId;
   if (imageUrl) {
     try {
-      // Download image and upload to X media endpoint
-      const https = require('https');
-      const http = require('http');
-      const fetch = imageUrl.startsWith('https') ? https : http;
+      let imageBuffer;
+      let mimeType = 'image/png';
 
-      const imageBuffer = await new Promise((resolve, reject) => {
-        fetch.get(imageUrl, (res) => {
-          const chunks = [];
-          res.on('data', (chunk) => chunks.push(chunk));
-          res.on('end', () => resolve(Buffer.concat(chunks)));
-          res.on('error', reject);
-        }).on('error', reject);
-      });
+      if (imageUrl.startsWith('data:')) {
+        const mimeMatch = imageUrl.match(/^data:([^;]+);base64,/);
+        if (mimeMatch) mimeType = mimeMatch[1];
+        const base64Data = imageUrl.replace(/^data:[^;]+;base64,/, '');
+        imageBuffer = Buffer.from(base64Data, 'base64');
+      } else {
+        const https = require('https');
+        const http = require('http');
+        const fetch = imageUrl.startsWith('https') ? https : http;
 
-      mediaId = await rwClient.v1.uploadMedia(imageBuffer, { mimeType: 'image/png' });
+        imageBuffer = await new Promise((resolve, reject) => {
+          fetch.get(imageUrl, (res) => {
+            const chunks = [];
+            res.on('data', (chunk) => chunks.push(chunk));
+            res.on('end', () => resolve(Buffer.concat(chunks)));
+            res.on('error', reject);
+          }).on('error', reject);
+        });
+      }
+
+      mediaId = await rwClient.v1.uploadMedia(imageBuffer, { mimeType });
     } catch (err) {
       logger.warn({ err: err.message }, 'failed to upload media to X — posting without image');
     }
