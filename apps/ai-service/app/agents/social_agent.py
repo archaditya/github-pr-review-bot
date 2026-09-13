@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 
@@ -32,36 +33,41 @@ SOCIAL_DRAFT_SCHEMA = {
 
 def _build_system_prompt(repo_name: str, repo_voice: str) -> str:
     return f"""You are a social media content creator for a software developer named Aditya.
-You generate social media posts about engineering work, features, and updates.
+You generate social media posts announcing completed engineering features, architectural milestones, and major product updates.
 
 PROJECT CONTEXT:
 - Project: {repo_name}
 - Voice/Tone: {repo_voice}
 
+CRITICAL RULES FOR POST CONTENT:
+1. FOCUS ON THE FEATURE / WHAT WAS BUILT:
+   - Announce the major features, architectures, modules, and user-facing capabilities introduced in this PR.
+   - Highlight the tech stack, key architectural decisions, and why this update matters to users/developers.
+   - Celebrate shipping the milestone (e.g. "Just shipped Module 1 of Verkin!", "Implemented...", "Built...").
+2. DO NOT WRITE ABOUT CODE REVIEW FINDINGS OR LINTER ISSUES:
+   - NEVER write a post about internal bot findings, review comments, or minor typo/linter fixes. People post on LinkedIn/X about product milestones and engineering accomplishments, not code review nitpicks!
+
 PLATFORM RULES:
 
 **X (Twitter):**
 - MUST be under 280 characters total (this is a hard platform limit)
-- Punchy, engaging, with relevant emojis
-- Use hashtags sparingly (1-2 max)
-- Hook the reader in the first line
-- Tech-savvy audience, be authentic not corporate
+- Punchy, exciting, highlight the main accomplishment/feature with relevant emojis
+- Use 1-2 relevant hashtags
+- First-person ("Just shipped...", "Built...", "Shipped...")
 
 **LinkedIn:**
-- Professional and explanatory
-- 1-3 paragraphs, detailed but scannable
-- Explain the "what" and "why" of the work
-- Can include technical depth
-- Professional tone but not stuffy — Aditya's personal voice
-- Include relevant hashtags at the end (3-5)
+- Professional, insightful, storytelling style
+- 2-4 clean, scannable paragraphs
+- Structure:
+  1. Catchy hook: what major milestone or feature was just built/shipped
+  2. The technical breakdown: architecture, libraries, challenges solved, frontend/backend integration
+  3. Key takeaway or what's next
+- Include 3-5 relevant tech hashtags
 
 RULES:
 - Write as Aditya (first person: "I", "my", "we")
-- Focus on the value/impact of the changes, not just what was done
-- Make it sound like genuine developer progress, not marketing
-- If the context is about a bug fix, frame it as improving reliability
-- If it's a new feature, highlight the user benefit
-- Never fabricate details — only reference what's in the provided context
+- Focus on the value and engineering accomplishments
+- Make it sound like genuine developer progress, not corporate marketing
 - Both posts should be ready to publish as-is (no placeholders)"""
 
 
@@ -69,28 +75,20 @@ def _build_user_message(request: SocialDraftRequest) -> str:
     parts = []
 
     if request.standalone_input:
-        parts.append(f"## My idea/thought to post about\n{request.standalone_input}\n")
+        parts.append(f"## Topic/Update to post about\n{request.standalone_input}\n")
     else:
-        parts.append(f"## PR: {request.pr_title} (#{request.pr_number})\n")
-
-    if request.review_summary:
-        parts.append(f"## AI Review Summary\n{request.review_summary[:2000]}\n")
-
-    if request.findings:
-        findings_text = "\n".join(
-            f"- [{f.get('severity', 'info')}] {f.get('file', '')}:{f.get('line', '')} — {f.get('rationale', '')}"
-            for f in request.findings[:5]
-        )
-        parts.append(f"## Key Findings\n{findings_text}\n")
+        parts.append(f"## Pull Request: {request.pr_title} (#{request.pr_number})\n")
 
     if request.changed_files:
-        files_text = "\n".join(f"- {f}" for f in request.changed_files[:10])
-        parts.append(f"## Changed Files\n{files_text}\n")
+        files_text = "\n".join(f"- {f}" for f in request.changed_files[:25])
+        parts.append(f"## Key Changed Files\n{files_text}\n")
 
     if request.diff:
-        parts.append(f"## Diff (excerpt)\n```diff\n{request.diff[:3000]}\n```\n")
+        parts.append(f"## Implementation Diff (what was built)\n```diff\n{request.diff[:15000]}\n```\n")
 
-    parts.append("\nGenerate an X post and a LinkedIn post about this work.")
+    parts.append(
+        "\nIMPORTANT: Write an engaging post celebrating the major features, architecture, and engineering milestone accomplished in this PR. Do NOT focus on code review findings or linter notes."
+    )
     return "\n".join(parts)
 
 
@@ -117,14 +115,52 @@ async def _call_model(system_prompt: str, user_message: str) -> dict:
     return json.loads(raw_content)
 
 
+async def _generate_dalle_image(repo_name: str, repo_voice: str, topic: str) -> str | None:
+    """
+    Generate a modern, minimal, tech-forward social media banner using DALL·E 3.
+    Resilient: logs any errors and returns None so draft text generation is never blocked.
+    """
+    prompt = (
+        f"Create a modern, minimal, professional social media post banner for a software engineering update. "
+        f"Project: '{repo_name or 'Software'}'. "
+        f"Context: {repo_voice or 'Software Development'}. "
+        f"Topic: '{topic}'. "
+        f"Style: Clean gradient background, sleek abstract geometric architecture suggesting modern code and technology. "
+        f"No text, words, or letters inside the image — pure visual design. "
+        f"Colors: Rich, vibrant, tech-forward palette with smooth lighting. Professional and premium quality. "
+        f"Aspect ratio: Landscape."
+    )
+    client = get_openai_client()
+    try:
+        response = await client.images.generate(
+            model="dall-e-3",
+            prompt=prompt,
+            n=1,
+            size="1792x1024",
+            quality="standard",
+        )
+        url = response.data[0].url if response.data else None
+        if url:
+            logger.info("DALL·E 3 banner generated successfully for: %s", topic[:50])
+        return url
+    except Exception as exc:
+        logger.warning("DALL·E 3 banner generation failed: %s — continuing without image", exc)
+        return None
+
+
 async def generate_social_drafts(request: SocialDraftRequest) -> SocialDraftResponse:
-    """Generate X and LinkedIn post drafts from PR context or standalone input."""
+    """Generate X and LinkedIn post drafts and a DALL-E banner from PR context or standalone input."""
 
     system_prompt = _build_system_prompt(request.repo_name, request.repo_voice)
     user_message = _build_user_message(request)
+    topic = request.standalone_input or request.pr_title or "Feature Update"
+
+    # Concurrently generate both the text copy and the DALL-E banner
+    text_task = _call_model(system_prompt, user_message)
+    image_task = _generate_dalle_image(request.repo_name, request.repo_voice, topic)
 
     try:
-        raw = await _call_model(system_prompt, user_message)
+        raw, image_url = await asyncio.gather(text_task, image_task)
     except (APIError, APITimeoutError, RateLimitError) as exc:
         logger.error("openai call failed for social draft: %s", exc)
         raise SocialDraftGenerationError("OpenAI call failed") from exc
@@ -141,9 +177,10 @@ async def generate_social_drafts(request: SocialDraftRequest) -> SocialDraftResp
         x_draft = x_draft[:277] + "..."
 
     logger.info(
-        "generated social drafts (X: %d chars, LinkedIn: %d chars)",
+        "generated social drafts (X: %d chars, LinkedIn: %d chars, image: %s)",
         len(x_draft),
         len(linkedin_draft),
+        "yes" if image_url else "no",
     )
 
-    return SocialDraftResponse(x_draft=x_draft, linkedin_draft=linkedin_draft)
+    return SocialDraftResponse(x_draft=x_draft, linkedin_draft=linkedin_draft, image_url=image_url)

@@ -21,7 +21,8 @@ class SocialDraftRequest(BaseModel):
 
 
 class SocialDraftResponse(BaseModel):
-    """Generated drafts for X and LinkedIn."""
+    """Generated drafts for X and LinkedIn, plus DALL-E generated banner image."""
 
     x_draft: str
     linkedin_draft: str
+    image_url: Optional[str] = None
