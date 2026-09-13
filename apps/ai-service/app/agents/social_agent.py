@@ -117,7 +117,8 @@ async def _call_model(system_prompt: str, user_message: str) -> dict:
 
 async def _generate_dalle_image(repo_name: str, repo_voice: str, topic: str) -> str | None:
     """
-    Generate a modern, minimal, tech-forward social media banner using DALL·E 3.
+    Generate a modern, minimal, tech-forward social media banner using OpenAI Image API.
+    Tries gpt-image-2.5-flare (OpenAI 2026 flagship image model), falling back to gpt-image-1 or dall-e-2.
     Resilient: logs any errors and returns None so draft text generation is never blocked.
     """
     prompt = (
@@ -131,21 +132,32 @@ async def _generate_dalle_image(repo_name: str, repo_voice: str, topic: str) -> 
         f"Aspect ratio: Landscape."
     )
     client = get_openai_client()
-    try:
-        response = await client.images.generate(
-            model="dall-e-3",
-            prompt=prompt,
-            n=1,
-            size="1792x1024",
-            quality="standard",
-        )
-        url = response.data[0].url if response.data else None
-        if url:
-            logger.info("DALL·E 3 banner generated successfully for: %s", topic[:50])
-        return url
-    except Exception as exc:
-        logger.warning("DALL·E 3 banner generation failed: %s — continuing without image", exc)
-        return None
+    candidate_models = ["gpt-image-2.5-flare", "gpt-image-1", "dall-e-2"]
+
+    for model_name in candidate_models:
+        try:
+            logger.info("Attempting image generation with model: %s", model_name)
+            kwargs = {"model": model_name, "prompt": prompt, "n": 1}
+            if model_name == "dall-e-2":
+                kwargs["size"] = "1024x1024"
+
+            response = await client.images.generate(**kwargs)
+            if response.data and len(response.data) > 0:
+                item = response.data[0]
+                url = getattr(item, "url", None)
+                if url:
+                    logger.info("Image successfully generated with model %s (URL)", model_name)
+                    return url
+                b64 = getattr(item, "b64_json", None)
+                if b64:
+                    logger.info("Image successfully generated with model %s (base64)", model_name)
+                    return f"data:image/png;base64,{b64}"
+        except Exception as exc:
+            logger.warning("Image generation with model %s failed: %s", model_name, exc)
+            continue
+
+    logger.warning("All image generation model attempts failed — continuing without image")
+    return None
 
 
 async def generate_social_drafts(request: SocialDraftRequest) -> SocialDraftResponse:
