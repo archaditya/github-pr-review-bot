@@ -13,9 +13,9 @@ class Settings(BaseSettings):
 
     # OpenAI (ADR-003)
     openai_api_key: str
-    openai_model: str = "gpt-4o-mini"
-    openai_fast_model: str = "gpt-4o-mini"
-    openai_deep_model: str = "gpt-4o"
+    openai_model: str = "gpt-4.1"
+    openai_fast_model: str = "gpt-4.1-mini"
+    openai_deep_model: str = "gpt-4.1"
     openai_request_timeout_seconds: int = 30
 
     # Guardrails — see docs/architecture/ADR-003-python-ai-service-boundary.md and

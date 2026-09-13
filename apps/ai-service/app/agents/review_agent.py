@@ -34,9 +34,9 @@ IGNORED_PATTERNS = (
     "composer.lock",
     "gemfile.lock",
 )
-MAX_PER_FILE_PATCH_CHARS = 4000
-MAX_TOTAL_USAGE_CHARS = 32000
-MAX_USER_MESSAGE_CHARS = 320000  # ~80k tokens safety ceiling (well within 128k context limit)
+MAX_PER_FILE_PATCH_CHARS = 8000
+MAX_TOTAL_USAGE_CHARS = 120000  # ~30k tokens
+MAX_USER_MESSAGE_CHARS = 1200000  # ~300k tokens safety ceiling (fits comfortably in 1M token models like gpt-4.1)
 
 
 def _build_user_message(
