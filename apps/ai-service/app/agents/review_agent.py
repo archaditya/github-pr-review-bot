@@ -24,19 +24,55 @@ class ReviewGenerationError(Exception):
     on the Node side (ADR-006) treats any non-2xx as a breaker-tracked failure."""
 
 
+IGNORED_PATTERNS = (
+    "package-lock.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+    "bun.lockb",
+    "cargo.lock",
+    "poetry.lock",
+    "composer.lock",
+    "gemfile.lock",
+)
+MAX_PER_FILE_PATCH_CHARS = 4000
+MAX_TOTAL_USAGE_CHARS = 32000
+MAX_USER_MESSAGE_CHARS = 320000  # ~80k tokens safety ceiling (well within 128k context limit)
+
+
 def _build_user_message(
     diff: str,
     usage_context: list[ChangedFileContext],
     pr: PullRequestMeta,
     impact_context: ImpactContext | None = None,
 ) -> str:
-    usage_block = (
-        "\n\n".join(
-            f"### {item.file} ({item.status or 'modified'})\n```diff\n{item.patch or ''}\n```"
-            for item in usage_context
-        )
-        or "(no per-file context available)"
-    )
+    usage_lines: list[str] = []
+    accumulated_patch_chars = 0
+
+    for item in (usage_context or []):
+        filename = (item.file or "unknown").strip()
+        status = item.status or "modified"
+        patch = (item.patch or "").strip()
+        base_name = filename.lower().split("/")[-1]
+
+        if base_name in IGNORED_PATTERNS or any(base_name.endswith(ext) for ext in (".min.js", ".min.css", ".map")):
+            usage_lines.append(f"### {filename} ({status})\n*(lockfile/generated asset — omitted)*")
+            continue
+
+        if not patch:
+            usage_lines.append(f"### {filename} ({status})")
+            continue
+
+        if accumulated_patch_chars >= MAX_TOTAL_USAGE_CHARS:
+            usage_lines.append(f"### {filename} ({status})\n*(patch omitted to conserve context — see full diff)*")
+            continue
+
+        if len(patch) > MAX_PER_FILE_PATCH_CHARS:
+            patch = patch[:MAX_PER_FILE_PATCH_CHARS] + "\n...[file patch truncated]..."
+
+        accumulated_patch_chars += len(patch)
+        usage_lines.append(f"### {filename} ({status})\n```diff\n{patch}\n```")
+
+    usage_block = "\n\n".join(usage_lines) if usage_lines else "(no per-file context available)"
 
     parts = [
         f"Pull request: {pr.owner}/{pr.repo} #{pr.number}\n\n",
@@ -77,7 +113,19 @@ def _build_user_message(
         impact_parts.append(f"\n### Impact Summary: {impact_context.affected_files_count} files potentially affected")
         parts.extend(impact_parts)
 
-    return "".join(parts)
+    full_message = "".join(parts)
+    if len(full_message) > MAX_USER_MESSAGE_CHARS:
+        logger.warning(
+            "user_message exceeded %d chars (%d chars), truncating to fit model context window",
+            MAX_USER_MESSAGE_CHARS,
+            len(full_message),
+        )
+        full_message = (
+            full_message[: MAX_USER_MESSAGE_CHARS - 100]
+            + "\n\n...[diff & context truncated to fit model context window limit]..."
+        )
+
+    return full_message
 
 
 @retry(

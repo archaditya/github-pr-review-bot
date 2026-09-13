@@ -71,13 +71,28 @@ async function fetchDiffContext({ installationId, owner, repo, pullNumber }) {
  * would check out the repo and grep/AST-scan the whole tree for call sites outside the
  * diff — tracked as a known MVP limitation, see docs/architecture/data-model.md.
  */
+const IGNORED_LOCKFILES = [
+  'package-lock.json',
+  'yarn.lock',
+  'pnpm-lock.yaml',
+  'bun.lockb',
+  'cargo.lock',
+  'poetry.lock',
+  'composer.lock',
+  'gemfile.lock',
+];
+
 function resolveUsageContext(changedFiles) {
   if (!Array.isArray(changedFiles)) return [];
-  return changedFiles.map((file) => ({
-    file: file.filename || file.file || 'unknown',
-    status: file.status || 'modified',
-    patch: typeof file.patch === 'string' ? file.patch : '',
-  }));
+  return changedFiles.map((file) => {
+    const filename = file.filename || file.file || 'unknown';
+    const isLockfile = IGNORED_LOCKFILES.some((p) => filename.toLowerCase().endsWith(p));
+    return {
+      file: filename,
+      status: file.status || 'modified',
+      patch: isLockfile ? '' : (typeof file.patch === 'string' ? file.patch : ''),
+    };
+  });
 }
 
 async function generateFindings({ diff, usageContext, impactContext, pr }) {
