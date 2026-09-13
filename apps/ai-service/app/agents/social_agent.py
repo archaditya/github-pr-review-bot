@@ -115,22 +115,42 @@ async def _call_model(system_prompt: str, user_message: str) -> dict:
     return json.loads(raw_content)
 
 
-async def _generate_dalle_image(repo_name: str, repo_voice: str, topic: str) -> str | None:
+def _build_image_prompt(repo_name: str, topic: str, changed_files: list[str]) -> str:
+    components = []
+    files_str = " ".join(changed_files or []).lower()
+    if any(k in files_str for k in ["auth", "jwt", "oauth", "session", "user", "login"]):
+        components.append("Auth Service (JWT / OAuth)")
+    if any(k in files_str for k in ["redis", "cache", "asynq", "queue", "worker", "job"]):
+        components.append("Redis Queue & Background Workers")
+    if any(k in files_str for k in ["db", "model", "schema", "postgres", "sql", "migration"]):
+        components.append("PostgreSQL Database")
+    if any(k in files_str for k in ["api", "router", "handler", "controller", "endpoint", "http"]):
+        components.append("API Gateway & HTTP Handlers")
+    if any(k in files_str for k in ["notify", "notification", "firebase", "push", "fcm"]):
+        components.append("Push Notification Service")
+    if any(k in files_str for k in ["ai", "gemini", "openai", "groq", "llm"]):
+        components.append("AI Service & LLM Provider")
+
+    tech_focus = " -> ".join(components) if components else "Client -> API Gateway -> Services -> Database & Cache"
+
+    return (
+        f"A clean technical system design diagram in hand-drawn Excalidraw whiteboard sketch style on a subtle light grid paper background. "
+        f"Subject: System Architecture for '{topic}' in '{repo_name or 'System'}'. "
+        f"Visual elements: Hand-drawn sketched boxes, architecture flowchart showing components ({tech_focus}), "
+        f"directional doodle arrows connecting services, simple hand-drawn icons for database cylinder, message queue, server, and client. "
+        f"Style: Authentic developer whiteboard diagram, napkin sketch aesthetic like Excalidraw, clean legible layout. "
+        f"Color palette: Light cream or off-white background with subtle dotted grid, dark ink sketch outlines, and gentle pastel highlight fills (soft blue, mint green, coral, pale yellow). "
+        f"Educational, highly technical, visually appealing software engineering diagram."
+    )
+
+
+async def _generate_dalle_image(repo_name: str, repo_voice: str, topic: str, changed_files: list[str] = None) -> str | None:
     """
-    Generate a modern, minimal, tech-forward social media banner using OpenAI Image API.
+    Generate a technical Excalidraw/whiteboard system design architecture diagram using OpenAI Image API.
     Tries gpt-image-2.5-flare (OpenAI 2026 flagship image model), falling back to gpt-image-1 or dall-e-2.
     Resilient: logs any errors and returns None so draft text generation is never blocked.
     """
-    prompt = (
-        f"Create a modern, minimal, professional social media post banner for a software engineering update. "
-        f"Project: '{repo_name or 'Software'}'. "
-        f"Context: {repo_voice or 'Software Development'}. "
-        f"Topic: '{topic}'. "
-        f"Style: Clean gradient background, sleek abstract geometric architecture suggesting modern code and technology. "
-        f"No text, words, or letters inside the image — pure visual design. "
-        f"Colors: Rich, vibrant, tech-forward palette with smooth lighting. Professional and premium quality. "
-        f"Aspect ratio: Landscape."
-    )
+    prompt = _build_image_prompt(repo_name, topic, changed_files or [])
     client = get_openai_client()
     candidate_models = ["gpt-image-2.5-flare", "gpt-image-1", "dall-e-2"]
 
@@ -169,7 +189,7 @@ async def generate_social_drafts(request: SocialDraftRequest) -> SocialDraftResp
 
     # Concurrently generate both the text copy and the DALL-E banner
     text_task = _call_model(system_prompt, user_message)
-    image_task = _generate_dalle_image(request.repo_name, request.repo_voice, topic)
+    image_task = _generate_dalle_image(request.repo_name, request.repo_voice, topic, request.changed_files)
 
     try:
         raw, image_url = await asyncio.gather(text_task, image_task)
