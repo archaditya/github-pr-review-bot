@@ -224,8 +224,13 @@ export default function ReviewJobDetailPage() {
       )}
       {mergePR.isError && (
         <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive font-mono">
-          <AlertCircle className="h-4 w-4" />
-          Merge failed: {mergePR.error?.message || 'Unknown error'}
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>
+            Merge failed:{' '}
+            {(mergePR.error as any)?.response?.data?.error?.message ||
+              mergePR.error?.message ||
+              'Unknown error'}
+          </span>
         </div>
       )}
 

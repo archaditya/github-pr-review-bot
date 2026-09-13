@@ -1,6 +1,6 @@
 const db = require('../models');
 const config = require('../config');
-const { NotFoundError } = require('../utils/errors');
+const { NotFoundError, ForbiddenError, ConflictError } = require('../utils/errors');
 const githubPr = require('../integrations/github/pull-request-client');
 const repositoryService = require('./repository.service');
 const logger = require('../utils/logger');
@@ -26,13 +26,31 @@ async function mergePullRequest(userId, pullRequestId, { mergeMethod = 'merge' }
   const installation = pr.repository.installation;
   const [owner, repo] = pr.repository.fullName.split('/');
 
-  const result = await githubPr.mergePullRequest({
-    installationId: installation.githubInstallationId,
-    owner,
-    repo,
-    pullNumber: pr.githubPrNumber,
-    mergeMethod,
-  });
+  let result;
+  try {
+    result = await githubPr.mergePullRequest({
+      installationId: installation.githubInstallationId,
+      owner,
+      repo,
+      pullNumber: pr.githubPrNumber,
+      mergeMethod,
+    });
+  } catch (err) {
+    if (err.status === 403 || err.message?.includes('Resource not accessible by integration')) {
+      throw new ForbiddenError(
+        'GitHub App requires "Contents: Read and write" permission to merge pull requests. Please update the permission in your GitHub App settings and accept the updated permissions on your repository.'
+      );
+    }
+    if (err.status === 405) {
+      throw new ConflictError(
+        err.response?.data?.message || 'Pull request cannot be merged (e.g., merge conflicts or blocking status checks).'
+      );
+    }
+    if (err.status === 409) {
+      throw new ConflictError('Head branch was modified or PR is in conflict. Please update branch.');
+    }
+    throw err;
+  }
 
   logger.info(
     { pullRequestId, prNumber: pr.githubPrNumber, repo: pr.repository.fullName },
