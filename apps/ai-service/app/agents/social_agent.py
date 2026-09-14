@@ -22,53 +22,74 @@ SOCIAL_DRAFT_SCHEMA = {
     "schema": {
         "type": "object",
         "properties": {
-            "x_draft": {"type": "string", "description": "Short, punchy post for X (Twitter). Must be under 280 characters."},
-            "linkedin_draft": {"type": "string", "description": "Professional, detailed post for LinkedIn. Can be longer and more explanatory."},
+            "x_draft": {
+                "type": "string",
+                "description": "Short, punchy post for X (Twitter). Must be under 280 characters.",
+            },
+            "linkedin_draft": {
+                "type": "string",
+                "description": "Professional, detailed post for LinkedIn. Can be longer and more explanatory.",
+            },
+            "image_prompt": {
+                "type": "string",
+                "description": (
+                    "A detailed prompt for generating an Excalidraw-style technical whiteboard diagram. "
+                    "Must visually illustrate the exact workflow, pipeline, or architecture of THIS PR based strictly on the diff. "
+                    "Do NOT invent generic database cylinders, message queues, or AI services unless they exist in the diff."
+                ),
+            },
         },
-        "required": ["x_draft", "linkedin_draft"],
+        "required": ["x_draft", "linkedin_draft", "image_prompt"],
         "additionalProperties": False,
     },
 }
 
 
 def _build_system_prompt(repo_name: str, repo_voice: str) -> str:
-    return f"""You are a social media content creator for a software developer named Aditya.
-You generate social media posts announcing completed engineering features, architectural milestones, and major product updates.
+    return f"""You are a senior developer advocate and content creator for a software engineer named Aditya.
+You generate social media posts and technical whiteboard diagrams announcing completed engineering features, architectural milestones, and major product updates.
 
 PROJECT CONTEXT:
 - Project: {repo_name}
 - Voice/Tone: {repo_voice}
 
 CRITICAL RULES FOR POST CONTENT:
-1. FOCUS ON THE FEATURE / WHAT WAS BUILT:
-   - Announce the major features, architectures, modules, and user-facing capabilities introduced in this PR.
-   - Highlight the tech stack, key architectural decisions, and why this update matters to users/developers.
-   - Celebrate shipping the milestone (e.g. "Just shipped Module 1 of Verkin!", "Implemented...", "Built...").
-2. DO NOT WRITE ABOUT CODE REVIEW FINDINGS OR LINTER ISSUES:
-   - NEVER write a post about internal bot findings, review comments, or minor typo/linter fixes. People post on LinkedIn/X about product milestones and engineering accomplishments, not code review nitpicks!
+1. STRICT GROUNDING IN THE PR DIFF:
+   - ONLY describe technologies, modules, and workflows that are actually present in the changed files and unified diff.
+   - NEVER assume or hallucinate external services (e.g. do NOT mention 'AI services', 'LLMs', 'Kafka', 'Redis', or 'PostgreSQL' unless they are explicitly in the diff!).
+   - If the PR is about image decoding, Go routines, CLI tools, UI components, or bug fixes, describe EXACTLY that domain.
+2. FOCUS ON THE FEATURE / ENGINEERING VALUE:
+   - Announce what capability was built or improved.
+   - Highlight the tech stack, key architectural decisions, and why this update matters.
+   - Celebrate shipping the milestone (e.g. "Just shipped...", "Implemented...", "Built...").
+3. DO NOT WRITE ABOUT CODE REVIEW FINDINGS OR LINTER ISSUES:
+   - NEVER mention bot reviews, code review comments, or nitpicks. People post about product milestones and engineering accomplishments!
 
 PLATFORM RULES:
 
 **X (Twitter):**
-- MUST be under 280 characters total (this is a hard platform limit)
-- Punchy, exciting, highlight the main accomplishment/feature with relevant emojis
-- Use 1-2 relevant hashtags
-- First-person ("Just shipped...", "Built...", "Shipped...")
+- MUST be under 280 characters total (hard platform limit)
+- Punchy, exciting, highlight the main accomplishment with 1-2 relevant emojis and hashtags
+- First-person ("Just shipped...", "Implemented...", "Built...")
 
 **LinkedIn:**
-- Professional, insightful, storytelling style
-- 2-4 clean, scannable paragraphs
-- Structure:
-  1. Catchy hook: what major milestone or feature was just built/shipped
-  2. The technical breakdown: architecture, libraries, challenges solved, frontend/backend integration
-  3. Key takeaway or what's next
+- Professional, storytelling style
+- 2-4 clean, scannable paragraphs (Hook -> Technical breakdown of the diff -> Key takeaway)
 - Include 3-5 relevant tech hashtags
+
+**IMAGE DIAGRAM PROMPT (image_prompt):**
+You must write a rich, tailored prompt for OpenAI's Image API to generate an authentic developer whiteboard sketch.
+Requirements for image_prompt:
+- Style: Hand-drawn Excalidraw / napkin sketch aesthetic on a subtle off-white grid paper background. Dark ink marker outlines with gentle pastel color highlights (soft blue, mint green, pale yellow, coral).
+- Content: An architecture, data pipeline, or workflow diagram representing THE EXACT WORK in this PR.
+  * Clearly define the specific nodes/boxes and the step-by-step arrows connecting them based on the diff.
+  * Example for image processing: "Raw Image -> Byte Marker Check -> Format Normalizer -> Detection Engine -> Result Classification".
+  * DO NOT include generic database cylinders, queues, or AI services unless they are genuinely part of this PR's diff.
+  * Make the diagram educational, technically precise to this PR, and visually engaging.
 
 RULES:
 - Write as Aditya (first person: "I", "my", "we")
-- Focus on the value and engineering accomplishments
-- Make it sound like genuine developer progress, not corporate marketing
-- Both posts should be ready to publish as-is (no placeholders)"""
+- Both posts and image prompt must be fully formed and ready to use without placeholders."""
 
 
 def _build_user_message(request: SocialDraftRequest) -> str:
@@ -87,7 +108,7 @@ def _build_user_message(request: SocialDraftRequest) -> str:
         parts.append(f"## Implementation Diff (what was built)\n```diff\n{request.diff[:15000]}\n```\n")
 
     parts.append(
-        "\nIMPORTANT: Write an engaging post celebrating the major features, architecture, and engineering milestone accomplished in this PR. Do NOT focus on code review findings or linter notes."
+        "\nIMPORTANT: Strictly ground your post and image_prompt in the diff above. Do NOT hallucinate components or services not present in the code."
     )
     return "\n".join(parts)
 
@@ -108,56 +129,29 @@ async def _call_model(system_prompt: str, user_message: str) -> dict:
             {"role": "user", "content": user_message},
         ],
         response_format={"type": "json_schema", "json_schema": SOCIAL_DRAFT_SCHEMA},
-        temperature=0.7,  # higher creativity for social posts
+        temperature=0.7,
     )
 
     raw_content = completion.choices[0].message.content
     return json.loads(raw_content)
 
 
-def _build_image_prompt(repo_name: str, topic: str, changed_files: list[str]) -> str:
-    components = []
-    files_str = " ".join(changed_files or []).lower()
-    if any(k in files_str for k in ["auth", "jwt", "oauth", "session", "user", "login"]):
-        components.append("Auth Service (JWT / OAuth)")
-    if any(k in files_str for k in ["redis", "cache", "asynq", "queue", "worker", "job"]):
-        components.append("Redis Queue & Background Workers")
-    if any(k in files_str for k in ["db", "model", "schema", "postgres", "sql", "migration"]):
-        components.append("PostgreSQL Database")
-    if any(k in files_str for k in ["api", "router", "handler", "controller", "endpoint", "http"]):
-        components.append("API Gateway & HTTP Handlers")
-    if any(k in files_str for k in ["notify", "notification", "firebase", "push", "fcm"]):
-        components.append("Push Notification Service")
-    if any(k in files_str for k in ["ai", "gemini", "openai", "groq", "llm"]):
-        components.append("AI Service & LLM Provider")
-
-    tech_focus = " -> ".join(components) if components else "Client -> API Gateway -> Services -> Database & Cache"
-
-    return (
-        f"A clean technical system design diagram in hand-drawn Excalidraw whiteboard sketch style on a subtle light grid paper background. "
-        f"Subject: System Architecture for '{topic}' in '{repo_name or 'System'}'. "
-        f"Visual elements: Hand-drawn sketched boxes, architecture flowchart showing components ({tech_focus}), "
-        f"directional doodle arrows connecting services, simple hand-drawn icons for database cylinder, message queue, server, and client. "
-        f"Style: Authentic developer whiteboard diagram, napkin sketch aesthetic like Excalidraw, clean legible layout. "
-        f"Color palette: Light cream or off-white background with subtle dotted grid, dark ink sketch outlines, and gentle pastel highlight fills (soft blue, mint green, coral, pale yellow). "
-        f"Educational, highly technical, visually appealing software engineering diagram."
-    )
-
-
-async def _generate_dalle_image(repo_name: str, repo_voice: str, topic: str, changed_files: list[str] = None) -> str | None:
+async def _generate_dalle_image(image_prompt: str) -> str | None:
     """
-    Generate a technical Excalidraw/whiteboard system design architecture diagram using OpenAI Image API.
+    Generate a technical Excalidraw/whiteboard system design diagram using OpenAI Image API.
     Tries gpt-image-2.5-flare (OpenAI 2026 flagship image model), falling back to gpt-image-1 or dall-e-2.
     Resilient: logs any errors and returns None so draft text generation is never blocked.
     """
-    prompt = _build_image_prompt(repo_name, topic, changed_files or [])
+    if not image_prompt:
+        return None
+
     client = get_openai_client()
     candidate_models = ["gpt-image-2.5-flare", "gpt-image-1", "dall-e-2"]
 
     for model_name in candidate_models:
         try:
             logger.info("Attempting image generation with model: %s", model_name)
-            kwargs = {"model": model_name, "prompt": prompt, "n": 1}
+            kwargs = {"model": model_name, "prompt": image_prompt, "n": 1}
             if model_name == "dall-e-2":
                 kwargs["size"] = "1024x1024"
 
@@ -181,18 +175,13 @@ async def _generate_dalle_image(repo_name: str, repo_voice: str, topic: str, cha
 
 
 async def generate_social_drafts(request: SocialDraftRequest) -> SocialDraftResponse:
-    """Generate X and LinkedIn post drafts and a DALL-E banner from PR context or standalone input."""
+    """Generate X and LinkedIn post drafts and a tailored whiteboard diagram from PR context or standalone input."""
 
     system_prompt = _build_system_prompt(request.repo_name, request.repo_voice)
     user_message = _build_user_message(request)
-    topic = request.standalone_input or request.pr_title or "Feature Update"
-
-    # Concurrently generate both the text copy and the DALL-E banner
-    text_task = _call_model(system_prompt, user_message)
-    image_task = _generate_dalle_image(request.repo_name, request.repo_voice, topic, request.changed_files)
 
     try:
-        raw, image_url = await asyncio.gather(text_task, image_task)
+        raw = await _call_model(system_prompt, user_message)
     except (APIError, APITimeoutError, RateLimitError) as exc:
         logger.error("openai call failed for social draft: %s", exc)
         raise SocialDraftGenerationError("OpenAI call failed") from exc
@@ -203,10 +192,19 @@ async def generate_social_drafts(request: SocialDraftRequest) -> SocialDraftResp
     # Validate and enforce X character limit
     x_draft = raw.get("x_draft", "")
     linkedin_draft = raw.get("linkedin_draft", "")
+    image_prompt = raw.get("image_prompt", "")
 
     if len(x_draft) > 280:
         logger.warning("X draft exceeded 280 chars (%d) — truncating", len(x_draft))
         x_draft = x_draft[:277] + "..."
+
+    # Generate custom tailored diagram matching the specific PR's components and flow
+    image_url = None
+    if image_prompt:
+        try:
+            image_url = await _generate_dalle_image(image_prompt)
+        except Exception as exc:
+            logger.warning("image generation step encountered error: %s", exc)
 
     logger.info(
         "generated social drafts (X: %d chars, LinkedIn: %d chars, image: %s)",
@@ -216,3 +214,4 @@ async def generate_social_drafts(request: SocialDraftRequest) -> SocialDraftResp
     )
 
     return SocialDraftResponse(x_draft=x_draft, linkedin_draft=linkedin_draft, image_url=image_url)
+

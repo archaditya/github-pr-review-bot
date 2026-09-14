@@ -115,38 +115,89 @@ async function generateFindings({ diff, usageContext, impactContext, pr }) {
   return result.findings || [];
 }
 
-function renderSummaryBody(findings, { reviewJobId } = {}) {
-  if (!findings || findings.length === 0) {
-    return '### AI Review Summary\n\nNo issues found.';
+function formatFindingLine(f) {
+  let line = `- **${f.severity || 'info'}** \`${f.file}${f.line ? `:${f.line}` : ''}\` — ${f.rationale}`;
+  if (f.evidence) {
+    line += `\n  > _Evidence: ${f.evidence}_`;
   }
+  return line;
+}
 
-  const lines = findings.map((f) => {
-    let line = `- **${f.severity || 'info'}** \`${f.file}:${f.line}\` — ${f.rationale}`;
-    if (f.evidence) {
-      line += `\n  > _Evidence: ${f.evidence}_`;
-    }
-    return line;
-  });
-
+function renderSummaryBody(findings, { reviewJobId } = {}) {
   const dashboardUrl = config.webAppUrl || 'https://pr-review-bot.archadi.dev';
   const jobPath = reviewJobId ? `/review-jobs/${reviewJobId}` : '';
+  const actionLinks = reviewJobId
+    ? ['', '---', `[🔀 Merge PR →](${dashboardUrl}${jobPath}?action=merge)  |  [📝 Make Post →](${dashboardUrl}${jobPath}?action=post)`]
+    : [];
 
-  const parts = [
-    '### AI Review Summary',
-    '',
-    ...lines,
+  // Case 1: Clean code — zero findings
+  if (!findings || findings.length === 0) {
+    return [
+      '### ✅ AI Review: Approved (LGTM)',
+      '',
+      '**Status:** Ready to merge 🚀',
+      '',
+      'No issues, bugs, or security vulnerabilities found. The implementation is clean and well-structured!',
+      '',
+      `_Reply with @${config.github.botHandle} if you have any questions._`,
+      ...actionLinks,
+    ].join('\n');
+  }
+
+  const blockers = findings.filter((f) => ['critical', 'high'].includes(f.severity));
+  const warnings = findings.filter((f) => f.severity === 'medium');
+  const suggestions = findings.filter((f) => ['low', 'info'].includes(f.severity) || !f.severity);
+
+  const parts = [];
+
+  if (blockers.length === 0 && warnings.length === 0) {
+    // Case 2: Only non-blocking suggestions / info
+    parts.push(
+      '### ✅ AI Review: Approved with Suggestions (LGTM)',
+      '',
+      '**Status:** Ready to merge 🚀 *(all findings below are optional / non-blocking)*',
+      '',
+      'The core implementation is solid. Here are a few minor ideas or non-blocking observations for consideration:',
+      '',
+      '#### 💡 Suggestions & Notes',
+      ...suggestions.map(formatFindingLine),
+    );
+  } else if (blockers.length === 0) {
+    // Case 3: Medium considerations but no blockers
+    parts.push(
+      '### ⚠️ AI Review: Looks Good, Minor Considerations',
+      '',
+      "**Status:** Mergeable at author's discretion 👍 *(no critical/high blockers)*",
+      '',
+      '#### 🔍 Discussion Points',
+      ...warnings.map(formatFindingLine),
+    );
+    if (suggestions.length > 0) {
+      parts.push('', '#### 💡 Suggestions & Notes', ...suggestions.map(formatFindingLine));
+    }
+  } else {
+    // Case 4: Critical or high blockers present
+    parts.push(
+      '### 🛑 AI Review: Action Suggested',
+      '',
+      '**Status:** Potential blocking issues detected ⚠️',
+      '',
+      '#### 🚨 Issues to Address',
+      ...blockers.map(formatFindingLine),
+    );
+    if (warnings.length > 0) {
+      parts.push('', '#### 🔍 Discussion Points', ...warnings.map(formatFindingLine));
+    }
+    if (suggestions.length > 0) {
+      parts.push('', '#### 💡 Non-blocking Suggestions', ...suggestions.map(formatFindingLine));
+    }
+  }
+
+  parts.push(
     '',
     `_Reply with @${config.github.botHandle} to ask about this review._`,
-  ];
-
-  // Add deep-links to dashboard actions
-  if (reviewJobId) {
-    parts.push(
-      '',
-      '---',
-      `[🔀 Merge PR →](${dashboardUrl}${jobPath}?action=merge)  |  [📝 Make Post →](${dashboardUrl}${jobPath}?action=post)`,
-    );
-  }
+    ...actionLinks,
+  );
 
   return parts.join('\n');
 }
