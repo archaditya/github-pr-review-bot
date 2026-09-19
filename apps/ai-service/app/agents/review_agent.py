@@ -85,7 +85,7 @@ def _build_user_message(
         impact_parts = ["\n\n## Structural Impact Analysis (from code knowledge graph)"]
 
         if impact_context.changed_symbols:
-            impact_parts.append(f"\n### Changed Symbols\n" + "\n".join(f"- `{s}`" for s in impact_context.changed_symbols))
+            impact_parts.append(f"\n### Changed Symbols (sample)\n" + "\n".join(f"- `{s}`" for s in impact_context.changed_symbols[:40]))
 
         if impact_context.callers:
             impact_parts.append(f"\n### Callers of Changed Code")
@@ -105,10 +105,10 @@ def _build_user_message(
             impact_parts.append(f"\n### Functions Called by Changed Code\n" + "\n".join(f"- `{c}`" for c in impact_context.callees[:20]))
 
         if impact_context.affected_endpoints:
-            impact_parts.append(f"\n### Affected API Endpoints\n" + "\n".join(f"- `{ep}`" for ep in impact_context.affected_endpoints))
+            impact_parts.append(f"\n### Affected API Endpoints\n" + "\n".join(f"- `{ep}`" for ep in impact_context.affected_endpoints[:20]))
 
         if impact_context.related_tests:
-            impact_parts.append(f"\n### Related Test Files\n" + "\n".join(f"- `{t}`" for t in impact_context.related_tests))
+            impact_parts.append(f"\n### Related Test Files\n" + "\n".join(f"- `{t}`" for t in impact_context.related_tests[:20]))
 
         impact_parts.append(f"\n### Impact Summary: {impact_context.affected_files_count} files potentially affected")
         parts.extend(impact_parts)

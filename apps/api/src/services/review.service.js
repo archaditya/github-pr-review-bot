@@ -146,15 +146,30 @@ async function fetchDiffContext({ reviewJobId, installationId, owner, repo, pull
   };
 }
 
-function resolveUsageContext(changedFiles) {
+function resolveUsageContext(changedFiles, maxFilesWithPatch = 50, maxTotalPatchChars = 120000) {
   if (!Array.isArray(changedFiles)) return [];
+
+  let totalPatchChars = 0;
+  let filesWithPatch = 0;
+
   return changedFiles.map((file) => {
     const filename = file.filename || file.file || 'unknown';
     const isLockfile = isIgnoredFile(filename);
+    let patch = isLockfile ? '' : (typeof file.patch === 'string' ? file.patch : '');
+
+    if (patch) {
+      if (filesWithPatch >= maxFilesWithPatch || totalPatchChars + patch.length > maxTotalPatchChars) {
+        patch = ''; // omit patch body for overflow files to bound memory & tokens, keep file entry
+      } else {
+        filesWithPatch++;
+        totalPatchChars += patch.length;
+      }
+    }
+
     return {
       file: filename,
       status: file.status || 'modified',
-      patch: isLockfile ? '' : (typeof file.patch === 'string' ? file.patch : ''),
+      patch,
     };
   });
 }

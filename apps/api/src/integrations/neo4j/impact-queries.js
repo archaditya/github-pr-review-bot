@@ -12,19 +12,25 @@ async function analyzeImpact(repoId, changedFilePaths) {
     return { changedSymbols: [], callers: [], callees: [], affectedEndpoints: [], relatedTests: [], affectedFilesCount: 0 };
   }
 
+  // Bound paths to avoid query timeout on massive PRs (e.g. 300+ files)
+  const pathsToQuery = changedFilePaths.slice(0, 150);
+
   try {
     // 1. Find all symbols defined in changed files
     const symbolsResult = await runQuery(
       `MATCH (sym)-[:DEFINED_IN]->(f:File {repo_id: $repoId})
        WHERE f.path IN $paths
        RETURN sym.fqn AS fqn, sym.name AS name, f.path AS file_path, labels(sym)[0] AS label`,
-      { repoId, paths: changedFilePaths },
+      { repoId, paths: pathsToQuery },
     );
 
-    const changedSymbols = symbolsResult.map((r) => r.fqn);
-    if (!changedSymbols.length) {
+    const allChangedSymbols = symbolsResult.map((r) => r.fqn).filter(Boolean);
+    if (!allChangedSymbols.length) {
       return { changedSymbols: [], callers: [], callees: [], affectedEndpoints: [], relatedTests: [], affectedFilesCount: 0 };
     }
+
+    // Query callers and callees for top symbols to keep graph traversal sub-second
+    const fqnsToQuery = allChangedSymbols.slice(0, 200);
 
     // 2. Find callers of changed symbols (who calls this?)
     const callersResult = await runQuery(
@@ -34,7 +40,7 @@ async function analyzeImpact(repoId, changedFilePaths) {
        MATCH (caller)-[:DEFINED_IN]->(f:File)
        RETURN DISTINCT caller.fqn AS fqn, caller.name AS name, f.path AS file_path
        LIMIT 30`,
-      { repoId, fqns: changedSymbols },
+      { repoId, fqns: fqnsToQuery },
     );
 
     // 3. Find callees of changed symbols (what does this call?)
@@ -44,7 +50,7 @@ async function analyzeImpact(repoId, changedFilePaths) {
          AND NOT callee.fqn IN $fqns
        RETURN DISTINCT callee.fqn AS fqn
        LIMIT 30`,
-      { repoId, fqns: changedSymbols },
+      { repoId, fqns: fqnsToQuery },
     );
 
     // 4. Find affected API endpoints
