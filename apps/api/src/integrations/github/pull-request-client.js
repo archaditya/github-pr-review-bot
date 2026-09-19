@@ -37,23 +37,27 @@ async function getPullRequestDiff({ installationId, owner, repo, pullNumber }) {
  */
 async function listChangedFiles({ installationId, owner, repo, pullNumber }) {
   const octokit = await getInstallationOctokit(installationId);
-  // Paginate through all changed files (up to 500 files)
-  const files = await octokit.paginate(
-    'GET /repos/{owner}/{repo}/pulls/{pull_number}/files',
-    {
+  const allFiles = [];
+  let page = 1;
+  const perPage = 100;
+  const maxFiles = 500;
+
+  while (allFiles.length < maxFiles) {
+    const { data } = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}/files', {
       owner,
       repo,
       pull_number: pullNumber,
-      per_page: 100,
-    },
-    (response, done) => {
-      if (response.data.length >= 500) {
-        done();
-      }
-      return response.data;
-    },
-  );
-  return files || [];
+      per_page: perPage,
+      page,
+    });
+
+    if (!data || data.length === 0) break;
+    allFiles.push(...data);
+    if (data.length < perPage) break;
+    page++;
+  }
+
+  return allFiles;
 }
 
 /**
