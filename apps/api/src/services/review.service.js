@@ -9,6 +9,57 @@ const githubComments = require('../integrations/github/comment-client');
 const aiService = require('../integrations/ai-service-client');
 const eventBus = require('./event-bus.service');
 
+/**
+ * Moves a ReviewJob to `status` (guarded by the model hook in models/review-job.model.js)
+ * and appends a JobEvent row for the audit trail (docs/architecture/data-model.md).
+ * Called from each Inngest step in jobs/review-pipeline.job.js.
+ */
+async function transitionStatus(reviewJobId, status, { error, detail, step } = {}) {
+  const reviewJob = await db.ReviewJob.findByPk(reviewJobId);
+  if (!reviewJob) throw new Error(`ReviewJob ${reviewJobId} not found`);
+
+  const patch = { status };
+  if (status === REVIEW_JOB_STATUSES.FETCHING_DIFF && !reviewJob.startedAt) {
+    patch.startedAt = new Date();
+  }
+  if ([REVIEW_JOB_STATUSES.COMPLETED, REVIEW_JOB_STATUSES.FAILED].includes(status)) {
+    patch.completedAt = new Date();
+  }
+  if (error) patch.error = error;
+
+  await reviewJob.update(patch);
+
+  const eventStep = step || status.toLowerCase();
+
+  // Avoid creating duplicate identical succeeded/in-progress events if Inngest retried the same step
+  const lastEvent = await db.JobEvent.findOne({
+    where: { reviewJobId },
+    order: [['createdAt', 'DESC']],
+  });
+
+  if (!lastEvent || lastEvent.step !== eventStep || error) {
+    await db.JobEvent.create({
+      reviewJobId,
+      step: eventStep,
+      status: error ? 'failed' : 'succeeded',
+      detail: detail || null,
+    });
+  } else if (detail) {
+    // If re-entering with new detail, update the last event
+    await lastEvent.update({ detail });
+  }
+
+  // Emit real-time event for WebSocket broadcast
+  eventBus.emitReviewStatusChange({
+    reviewJobId,
+    status,
+    step: eventStep,
+    detail: detail || null,
+  });
+
+  return reviewJob;
+}
+
 const DIFF_CACHE_DIR = path.join(os.tmpdir(), 'pr-review-diffs');
 
 async function ensureDiffCacheDir() {
