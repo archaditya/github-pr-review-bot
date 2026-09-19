@@ -27,6 +27,7 @@ const reviewPipeline = inngest.createFunction(
       if (reviewJobId) {
         logger.error({ reviewJobId, err: error?.message }, 'review pipeline failed — updating status to FAILED');
         try {
+          await reviewService.cleanupJobDiffContext(reviewJobId);
           await reviewService.transitionStatus(reviewJobId, REVIEW_JOB_STATUSES.FAILED, {
             error: error?.message || 'Review pipeline failed unexpectedly',
             step: 'pipeline_failed',
@@ -42,17 +43,28 @@ const reviewPipeline = inngest.createFunction(
   async ({ event, step }) => {
     const { reviewJobId, installationId, owner, repo, pullNumber } = event.data;
 
-    let diff, changedFiles;
+    let diffSummary;
     try {
-      const diffData = await step.run('fetch-diff', async () => {
+      diffSummary = await step.run('fetch-diff', async () => {
         await reviewService.transitionStatus(reviewJobId, REVIEW_JOB_STATUSES.FETCHING_DIFF, {
           step: 'fetch_diff',
         });
-        return reviewService.fetchDiffContext({ installationId, owner, repo, pullNumber });
+        const result = await reviewService.fetchDiffContext({
+          reviewJobId,
+          installationId,
+          owner,
+          repo,
+          pullNumber,
+        });
+
+        // Return ONLY lightweight summary to Inngest to stay well under generator opcode limits
+        return {
+          changedPaths: result.changedPaths,
+          filesCount: result.filesCount,
+        };
       });
-      diff = diffData.diff;
-      changedFiles = diffData.changedFiles;
     } catch (err) {
+      await reviewService.cleanupJobDiffContext(reviewJobId);
       await reviewService.transitionStatus(reviewJobId, REVIEW_JOB_STATUSES.FAILED, {
         error: `Failed to fetch diff: ${err.message}`,
         step: 'fetch_diff',
@@ -82,7 +94,7 @@ const reviewPipeline = inngest.createFunction(
         const hasGraphData = await impactQueries.hasGraph(repository.id);
         if (!hasGraphData) return null;
 
-        const changedPaths = changedFiles.map((f) => f.filename);
+        const changedPaths = diffSummary?.changedPaths || [];
         const impact = await impactQueries.analyzeImpact(repository.id, changedPaths);
 
         return {
@@ -99,15 +111,15 @@ const reviewPipeline = inngest.createFunction(
       impactContext = null;
     }
 
-    let usageContext;
     try {
-      usageContext = await step.run('build-context', async () => {
+      await step.run('build-context', async () => {
         await reviewService.transitionStatus(reviewJobId, REVIEW_JOB_STATUSES.BUILDING_CONTEXT, {
           step: 'build_context',
         });
-        return reviewService.resolveUsageContext(changedFiles);
+        return { ready: true };
       });
     } catch (err) {
+      await reviewService.cleanupJobDiffContext(reviewJobId);
       await reviewService.transitionStatus(reviewJobId, REVIEW_JOB_STATUSES.FAILED, {
         error: `Failed to build context: ${err.message}`,
         step: 'build_context',
@@ -121,14 +133,28 @@ const reviewPipeline = inngest.createFunction(
         await reviewService.transitionStatus(reviewJobId, REVIEW_JOB_STATUSES.GENERATING_REVIEW, {
           step: 'generate_review',
         });
+
+        // Retrieve the cached diff context, or re-fetch if cache was evicted
+        let cached = await reviewService.getJobDiffContext(reviewJobId);
+        if (!cached || !cached.diff) {
+          cached = await reviewService.fetchDiffContext({
+            reviewJobId,
+            installationId,
+            owner,
+            repo,
+            pullNumber,
+          });
+        }
+
         return reviewService.generateFindings({
-          diff,
-          usageContext,
+          diff: cached.diff,
+          usageContext: cached.usageContext,
           impactContext,
           pr: { owner, repo, number: pullNumber },
         });
       });
     } catch (err) {
+      await reviewService.cleanupJobDiffContext(reviewJobId);
       await reviewService.transitionStatus(reviewJobId, REVIEW_JOB_STATUSES.FAILED, {
         error: `Failed to generate review: ${err.message}`,
         step: 'generate_review',
@@ -141,7 +167,7 @@ const reviewPipeline = inngest.createFunction(
         await reviewService.transitionStatus(reviewJobId, REVIEW_JOB_STATUSES.POSTING_COMMENTS, {
           step: 'post_comment',
         });
-        return reviewService.postSummaryAndPersist({
+        const posted = await reviewService.postSummaryAndPersist({
           reviewJobId,
           installationId,
           owner,
@@ -149,8 +175,13 @@ const reviewPipeline = inngest.createFunction(
           pullNumber,
           findings,
         });
+
+        // Clean up temporary disk cache after review comment is successfully posted
+        await reviewService.cleanupJobDiffContext(reviewJobId);
+        return { commentId: posted.id };
       });
     } catch (err) {
+      await reviewService.cleanupJobDiffContext(reviewJobId);
       await reviewService.transitionStatus(reviewJobId, REVIEW_JOB_STATUSES.FAILED, {
         error: `Failed to post GitHub comment: ${err.message}`,
         step: 'post_comment',
