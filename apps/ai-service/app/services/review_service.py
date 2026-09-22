@@ -98,10 +98,8 @@ def postprocess_findings(response: ReviewResponse) -> ReviewResponse:
     # Sort so most critical findings are preserved first, then non-blocking suggestions
     deduped.sort(key=lambda f: SEVERITY_ORDER.get(f.severity, 99))
 
-    # Strict hard cap: never overwhelm the author with more than 3 findings
-    cap = min(settings.max_findings, 3)
     return ReviewResponse(
-        findings=deduped[:cap],
+        findings=deduped[: settings.max_findings],
         truncated=response.truncated,
     )
 
