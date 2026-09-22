@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     # Guardrails — see docs/architecture/ADR-003-python-ai-service-boundary.md and
     # app/agents/README.md for how these are applied.
     max_diff_tokens: int = 6000
-    max_findings: int = 50
+    max_findings: int = 3
     max_conversation_history_messages: int = 20
     max_chat_history_messages: int = 10
     max_chat_context_tokens: int = 8000
