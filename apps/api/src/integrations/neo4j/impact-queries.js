@@ -63,7 +63,7 @@ async function analyzeImpact(repoId, changedFilePaths) {
          }
        RETURN DISTINCT ep.name AS name, ep.fqn AS fqn
        LIMIT 20`,
-      { repoId, fqns: changedSymbols },
+      { repoId, fqns: fqnsToQuery },
     );
 
     // 5. Find related test files (files that import or reference changed files)
@@ -73,7 +73,7 @@ async function analyzeImpact(repoId, changedFilePaths) {
          AND (testFile.path CONTAINS 'test' OR testFile.path CONTAINS 'spec' OR testFile.path CONTAINS '__tests__')
        RETURN DISTINCT testFile.path AS path
        LIMIT 20`,
-      { repoId, paths: changedFilePaths },
+      { repoId, paths: pathsToQuery },
     );
 
     // 6. Count total affected files (files containing callers)
@@ -82,11 +82,11 @@ async function analyzeImpact(repoId, changedFilePaths) {
        WHERE callee.repo_id = $repoId AND callee.fqn IN $fqns
        MATCH (caller)-[:DEFINED_IN]->(f:File)
        RETURN count(DISTINCT f.path) AS count`,
-      { repoId, fqns: changedSymbols },
+      { repoId, fqns: fqnsToQuery },
     );
 
     const impact = {
-      changedSymbols: (changedSymbols || []).filter(Boolean),
+      changedSymbols: allChangedSymbols,
       callers: (callersResult || [])
         .filter((r) => r && (r.fqn || r.name))
         .map((r) => ({

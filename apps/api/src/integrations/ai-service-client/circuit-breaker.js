@@ -8,12 +8,14 @@ const { AiServiceUnavailableError } = require('../../utils/errors');
 // the breaker for the (unrelated) review-generation flow — ADR-006.
 const breakers = new Map();
 
-function getBreaker(endpointName, path) {
+function getBreaker(endpointName, path, options = {}) {
   if (breakers.has(endpointName)) return breakers.get(endpointName);
 
-  const breaker = new CircuitBreaker((payload) => callAiService(path, payload), {
+  const timeoutMs = options.timeout || config.aiService.timeoutMs;
+
+  const breaker = new CircuitBreaker((payload) => callAiService(path, payload, { timeoutMs }), {
     name: endpointName,
-    timeout: config.aiService.timeoutMs,
+    timeout: timeoutMs,
     errorThresholdPercentage: 50,
     volumeThreshold: config.aiService.circuitBreaker.failureThreshold,
     resetTimeout: config.aiService.circuitBreaker.resetTimeoutMs,
@@ -55,21 +57,23 @@ function getBreaker(endpointName, path) {
  * ReviewContext -> structured findings. See docs/architecture/data-model.md § Review Context.
  */
 async function generateReview(reviewContext) {
-  return getBreaker('review.generate', '/review/generate').fire(reviewContext);
+  return getBreaker('review.generate', '/review/generate', { timeout: 90000 }).fire(reviewContext);
 }
 
 /**
  * ConversationContext -> a reply. See ADR-009.
  */
 async function generateConversationReply(conversationContext) {
-  return getBreaker('conversation.reply', '/conversation/reply').fire(conversationContext);
+  return getBreaker('conversation.reply', '/conversation/reply', { timeout: 60000 }).fire(conversationContext);
 }
 
 /**
- * PR/standalone context -> social post drafts (X + LinkedIn).
+ * PR/standalone context -> social post drafts (X + LinkedIn) + AI diagram.
+ * DALL-E / Flare image generation + text generation can take 40-90s with retries,
+ * so allow a 180s (3-minute) timeout.
  */
 async function generateSocialDrafts(socialContext) {
-  return getBreaker('social.generate', '/social/generate-drafts').fire(socialContext);
+  return getBreaker('social.generate', '/social/generate-drafts', { timeout: 180000 }).fire(socialContext);
 }
 
 module.exports = { generateReview, generateConversationReply, generateSocialDrafts };
