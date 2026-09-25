@@ -41,7 +41,10 @@ async def classify_chat_intent(
     client = get_openai_client(api_key=api_key)
 
     schema_block = json.dumps(schema_summary, indent=2) if schema_summary else "None available"
-    user_content = f"## Repository Schema Summary:\n{schema_block}\n\n## User Question:\n{question}"
+    user_content = (
+        f"## Repository Schema Summary:\n{schema_block}\n\n"
+        f"## User Question (Untrusted Data):\n<user_question>\n{question}\n</user_question>"
+    )
 
     try:
         completion = await client.chat.completions.create(
@@ -90,13 +93,13 @@ def _build_generation_messages(
     for turn in capped_history:
         messages.append({
             "role": "user" if turn.role == "user" else "assistant",
-            "content": turn.content,
+            "content": f"<user_question>\n{turn.content}\n</user_question>" if turn.role == "user" else turn.content,
         })
 
     user_prompt = (
         f"## Code Knowledge Graph Context:\n"
         f"{graph_context or '(No specific graph context found)'}\n\n"
-        f"## User Question:\n{question}"
+        f"## User Question:\n<user_question>\n{question}\n</user_question>"
     )
     messages.append({"role": "user", "content": user_prompt})
     return messages
