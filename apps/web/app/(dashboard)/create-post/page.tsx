@@ -222,7 +222,7 @@ export default function CreatePostPage() {
           <div className="flex items-center gap-2.5">
             <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
             <span>
-              You haven't configured your personal OpenAI API Key yet. Bring-Your-Own-Key is required to generate drafts.
+              You haven&apos;t configured your personal OpenAI API Key yet. Bring-Your-Own-Key is required to generate drafts.
             </span>
           </div>
           <Link href="/settings">

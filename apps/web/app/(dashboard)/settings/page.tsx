@@ -664,7 +664,7 @@ export default function SettingsPage() {
             {createdRawKey && (
               <div className="mt-4 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-4">
                 <p className="text-xs font-semibold text-emerald-400">
-                  Key generated successfully! Copy it now — you won't be able to see it again:
+                  Key generated successfully! Copy it now — you won&apos;t be able to see it again:
                 </p>
                 <div className="mt-2 flex items-center justify-between rounded bg-background/80 px-3 py-2 font-mono text-sm">
                   <span className="text-foreground break-all">{createdRawKey}</span>

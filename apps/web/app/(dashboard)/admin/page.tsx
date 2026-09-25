@@ -335,7 +335,7 @@ export default function AdminDashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium">PR Code Reviews</p>
-                  <p className="text-xs text-muted-foreground">Allow bot to review this user's pull requests</p>
+                  <p className="text-xs text-muted-foreground">Allow bot to review this user&apos;s pull requests</p>
                 </div>
                 <input
                   type="checkbox"
