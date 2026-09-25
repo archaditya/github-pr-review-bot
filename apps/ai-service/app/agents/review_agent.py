@@ -44,7 +44,16 @@ def _build_user_message(
     usage_context: list[ChangedFileContext],
     pr: PullRequestMeta,
     impact_context: ImpactContext | None = None,
+    review_level: str = "balanced",
 ) -> str:
+    level_instruction = ""
+    if review_level == "permissive":
+        level_instruction = "## Review Sensitivity: PERMISSIVE\nFocus ONLY on critical/high severity security vulnerabilities and breaking defects. Omit minor style or cosmetic suggestions.\n\n"
+    elif review_level == "strict":
+        level_instruction = "## Review Sensitivity: STRICT\nApply strict engineering standards: flag missing edge case handling, missing tests, typing issues, and documentation gaps alongside functional bugs.\n\n"
+    else:
+        level_instruction = "## Review Sensitivity: BALANCED\nFocus on correctness, security, performance, and breaking changes. Avoid trivial nitpicking.\n\n"
+
     usage_lines: list[str] = []
     accumulated_patch_chars = 0
 
@@ -75,6 +84,7 @@ def _build_user_message(
     usage_block = "\n\n".join(usage_lines) if usage_lines else "(no per-file context available)"
 
     parts = [
+        level_instruction,
         f"Pull request: {pr.owner}/{pr.repo} #{pr.number}\n\n",
         f"## Full diff\n```diff\n{diff or ''}\n```\n\n",
         f"## Per-file context\n{usage_block}",
@@ -157,6 +167,7 @@ async def generate_review(
     pull_request: PullRequestMeta,
     impact_context: ImpactContext | None = None,
     api_key: str | None = None,
+    review_level: str = "balanced",
 ) -> ReviewResponse:
     """
     ReviewContext -> structured findings. Guardrails applied, in order:
@@ -179,7 +190,13 @@ async def generate_review(
     if truncated:
         logger.warning("diff truncated to fit max_diff_tokens", extra={"pr": pr_label})
 
-    user_message = _build_user_message(capped_diff, usage_context or [], pull_request, impact_context)
+    user_message = _build_user_message(
+        capped_diff,
+        usage_context or [],
+        pull_request,
+        impact_context,
+        review_level=review_level,
+    )
 
     try:
         raw = await _call_model(user_message, api_key=api_key)

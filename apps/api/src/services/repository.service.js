@@ -31,12 +31,25 @@ async function getForUser(userId, repositoryId) {
 }
 
 /**
- * Toggles whether the bot reviews PRs on this repo.
+ * Updates repository settings (active state, AI review toggle, review sensitivity, custom social voice).
+ */
+async function updateSettings(userId, repositoryId, { isActive, aiReviewEnabled, reviewLevel, customVoice } = {}) {
+  const repository = await getForUser(userId, repositoryId);
+  const patch = {};
+  if (typeof isActive === 'boolean') patch.isActive = isActive;
+  if (typeof aiReviewEnabled === 'boolean') patch.aiReviewEnabled = aiReviewEnabled;
+  if (['balanced', 'strict', 'permissive'].includes(reviewLevel)) patch.reviewLevel = reviewLevel;
+  if (typeof customVoice === 'string' || customVoice === null) patch.customVoice = customVoice;
+
+  await repository.update(patch);
+  return repository;
+}
+
+/**
+ * Toggles whether the bot is active on this repo (backward compatibility).
  */
 async function setActive(userId, repositoryId, isActive) {
-  const repository = await getForUser(userId, repositoryId);
-  await repository.update({ isActive });
-  return repository;
+  return updateSettings(userId, repositoryId, { isActive });
 }
 
 async function runIndexJob({ repositoryId, installationId, owner, repo, branch }) {
@@ -179,4 +192,12 @@ async function syncForUser(userId) {
   return listForUser(userId);
 }
 
-module.exports = { listForUser, getForUser, setActive, triggerReindex, resetIndex, syncForUser };
+module.exports = {
+  listForUser,
+  getForUser,
+  setActive,
+  updateSettings,
+  triggerReindex,
+  resetIndex,
+  syncForUser,
+};

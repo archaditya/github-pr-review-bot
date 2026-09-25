@@ -225,7 +225,7 @@ function resolveUsageContext(changedFiles, maxFilesWithPatch = 50, maxTotalPatch
   });
 }
 
-async function generateFindings({ diff, usageContext, impactContext, pr }) {
+async function generateFindings({ diff, usageContext, impactContext, pr, reviewLevel = 'balanced', apiKey = null }) {
   const reviewContext = {
     diff: typeof diff === 'string' ? diff : (diff ? JSON.stringify(diff) : ''),
     usage_context: Array.isArray(usageContext) ? usageContext : [],
@@ -234,7 +234,12 @@ async function generateFindings({ diff, usageContext, impactContext, pr }) {
       repo: String(pr?.repo || ''),
       number: Number(pr?.number || 0),
     },
+    review_level: reviewLevel || 'balanced',
   };
+
+  if (apiKey) {
+    reviewContext.openai_api_key = apiKey;
+  }
 
   // Attach structural impact context when available (from code knowledge graph)
   if (impactContext) {

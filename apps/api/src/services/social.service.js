@@ -97,6 +97,9 @@ async function generateFromPR(userId, pullRequestId) {
   await repositoryService.getForUser(userId, pr.repository.id);
 
   const voice = getRepoVoice(pr.repository.fullName);
+  if (pr.repository.customVoice) {
+    voice.tone = pr.repository.customVoice;
+  }
   const latestJob = pr.reviewJobs?.[0];
   const findings = latestJob?.summaryComment?.findings || [];
   const reviewSummary = latestJob?.summaryComment?.body || '';

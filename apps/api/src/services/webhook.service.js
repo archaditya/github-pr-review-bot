@@ -120,6 +120,18 @@ async function handlePullRequestEvent(payload) {
       { transaction, returning: true },
     );
 
+    // Check if AI reviews are enabled for this repository and user
+    const isRepoActive = repositoryRow.isActive && repositoryRow.aiReviewEnabled !== false;
+    const isUserAllowed = !existingUser || (existingUser.status !== 'suspended' && existingUser.features?.can_review_prs !== false);
+
+    if (!isRepoActive || !isUserAllowed) {
+      logger.info(
+        { repo: repository.full_name, prNumber: pr.number, isRepoActive, isUserAllowed },
+        'Skipping AI review job — repository reviews paused or user not entitled',
+      );
+      return { skipped: true, pullRequestId: pullRequestRow.id };
+    }
+
     const job = await db.ReviewJob.create(
       {
         pullRequestId: pullRequestRow.id,
@@ -147,6 +159,10 @@ async function handlePullRequestEvent(payload) {
 
     return job;
   });
+
+  if (reviewJob?.skipped || !reviewJob?.id) {
+    return reviewJob;
+  }
 
   // Emit only after the transaction commits — never emit an event for a write that might
   // still roll back.

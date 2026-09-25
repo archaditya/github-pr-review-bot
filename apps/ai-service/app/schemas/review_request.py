@@ -96,6 +96,7 @@ class ReviewRequest(BaseModel):
     impact_context: Optional[ImpactContext] = None
     pull_request: Optional[PullRequestMeta] = None
     openai_api_key: Optional[str] = None
+    review_level: Optional[str] = "balanced"
 
     @field_validator("diff", mode="before")
     @classmethod

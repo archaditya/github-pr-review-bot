@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
@@ -24,6 +24,10 @@ import {
   Workflow,
   Waypoints,
   MessageSquareCode,
+  Sliders,
+  Bot,
+  Save,
+  CheckCircle2,
 } from 'lucide-react';
 import { useRepository } from '@/hooks/use-repository';
 import { useReviewJobs } from '@/hooks/use-review-jobs';
@@ -52,6 +56,30 @@ export default function RepositoryDetailPage() {
   const cancelJob = useCancelReviewJob();
   const deleteJob = useDeleteReviewJob();
   const retryJob = useRetryReviewJob();
+
+  const [customVoice, setCustomVoice] = useState<string>('');
+  const [reviewLevel, setReviewLevel] = useState<'balanced' | 'strict' | 'permissive'>('balanced');
+  const [aiReviewEnabled, setAiReviewEnabled] = useState<boolean>(true);
+  const [settingsInitialized, setSettingsInitialized] = useState(false);
+
+  useEffect(() => {
+    if (repository && !settingsInitialized) {
+      setCustomVoice(repository.customVoice || '');
+      setReviewLevel(repository.reviewLevel || 'balanced');
+      setAiReviewEnabled(repository.aiReviewEnabled !== false);
+      setSettingsInitialized(true);
+    }
+  }, [repository, settingsInitialized]);
+
+  async function handleSaveRepoSettings(e: React.FormEvent) {
+    e.preventDefault();
+    await updateRepository.mutateAsync({
+      aiReviewEnabled,
+      reviewLevel,
+      customVoice: customVoice.trim() || null,
+    });
+    alert('Repository review settings updated successfully!');
+  }
 
   if (repoLoading) return <Skeleton className="h-24 w-full rounded-lg" />;
 
@@ -274,6 +302,94 @@ export default function RepositoryDetailPage() {
             <span>Last indexed: {new Date(repository.indexedAt).toLocaleString()}</span>
           </div>
         )}
+      </div>
+
+      {/* AI Review & Bot Settings Card */}
+      <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
+        <div className="flex items-center justify-between border-b border-border pb-3">
+          <div className="flex items-center gap-2">
+            <Sliders className="h-4 w-4 text-primary" />
+            <h2 className="font-mono text-xs uppercase tracking-widest text-foreground font-semibold">
+              AI Review & Repository Automation Settings
+            </h2>
+          </div>
+          <div>
+            {aiReviewEnabled ? (
+              <span className="inline-flex items-center gap-1 font-mono text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                <CheckCircle2 className="h-3 w-3" />
+                Reviews Active
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 font-mono text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                <Ban className="h-3 w-3" />
+                Reviews Muted
+              </span>
+            )}
+          </div>
+        </div>
+
+        <form onSubmit={handleSaveRepoSettings} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Review Toggle */}
+            <div className="rounded-md border border-border bg-background p-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Automated Pull Request Reviews</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  When enabled, bot generates findings and summary comments on newly opened PRs.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={aiReviewEnabled}
+                onChange={(e) => setAiReviewEnabled(e.target.checked)}
+                className="h-4 w-4 rounded border-border text-primary"
+              />
+            </div>
+
+            {/* Review Sensitivity */}
+            <div className="rounded-md border border-border bg-background p-4 flex flex-col justify-between">
+              <div>
+                <label className="block text-sm font-medium mb-0.5">Review Sensitivity Level</label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Controls the depth and strictness of findings reported on PRs.
+                </p>
+              </div>
+              <select
+                value={reviewLevel}
+                onChange={(e) => setReviewLevel(e.target.value as any)}
+                className="w-full rounded-md border border-border bg-card px-3 py-1.5 text-xs font-mono focus:border-primary focus:outline-none"
+              >
+                <option value="balanced">Balanced (Recommended: bugs, security, breaking changes)</option>
+                <option value="strict">Strict (Deep checks, edge cases, tests, typing)</option>
+                <option value="permissive">Permissive (Critical vulnerabilities and showstoppers only)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Custom Voice for Social Media */}
+          <div className="rounded-md border border-border bg-background p-4 space-y-1.5">
+            <label className="block text-sm font-medium">
+              Custom Social Media Voice & Tone
+            </label>
+            <p className="text-xs text-muted-foreground">
+              Define the personality and technical description for social posts generated from this repository (leave empty to use default).
+            </p>
+            <textarea
+              rows={2}
+              value={customVoice}
+              onChange={(e) => setCustomVoice(e.target.value)}
+              placeholder="e.g. A cloud-native file storage platform — technical, developer-focused, architecture-oriented"
+              className="w-full rounded-md border border-border bg-card p-2.5 text-xs leading-relaxed placeholder:text-muted-foreground focus:border-primary focus:outline-none resize-none font-sans"
+            />
+          </div>
+
+          <div className="flex justify-end pt-1">
+            <Button type="submit" size="sm" disabled={updateRepository.isPending} className="gap-1.5">
+              <Save className="h-3.5 w-3.5" />
+              {updateRepository.isPending ? 'Saving Settings...' : 'Save Repository Settings'}
+            </Button>
+          </div>
+        </form>
       </div>
 
       {/* Review Activity */}

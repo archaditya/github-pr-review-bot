@@ -1,5 +1,6 @@
 const inngest = require('./client');
 const reviewService = require('../services/review.service');
+const settingsService = require('../services/settings.service');
 const { REVIEW_JOB_STATUSES } = require('../constants/review-job-status');
 const impactQueries = require('../integrations/neo4j/impact-queries');
 const db = require('../models');
@@ -146,11 +147,39 @@ const reviewPipeline = inngest.createFunction(
           });
         }
 
+        let reviewLevel = 'balanced';
+        let userApiKey = null;
+
+        const job = await db.ReviewJob.findByPk(reviewJobId, {
+          include: [{
+            model: db.PullRequest,
+            as: 'pullRequest',
+            include: [{
+              model: db.Repository,
+              as: 'repository',
+              include: [{ model: db.Installation, as: 'installation' }],
+            }],
+          }],
+        });
+
+        if (job?.pullRequest?.repository) {
+          reviewLevel = job.pullRequest.repository.reviewLevel || 'balanced';
+          const userId = job.pullRequest.repository.installation?.installedByUserId;
+          if (userId) {
+            userApiKey = await settingsService.getDecryptedOpenAiKey(userId);
+          }
+        }
+        if (!userApiKey) {
+          userApiKey = process.env.OPENAI_API_KEY || null;
+        }
+
         return reviewService.generateFindings({
           diff: cached.diff,
           usageContext: cached.usageContext,
           impactContext,
           pr: { owner, repo, number: pullNumber },
+          reviewLevel,
+          apiKey: userApiKey,
         });
       });
     } catch (err) {

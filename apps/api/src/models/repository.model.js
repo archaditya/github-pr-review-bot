@@ -72,6 +72,23 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: 0,
       },
+      aiReviewEnabled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+      },
+      reviewLevel: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        defaultValue: 'balanced',
+        validate: {
+          isIn: [['balanced', 'strict', 'permissive']],
+        },
+      },
+      customVoice: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
     },
     {
       sequelize,

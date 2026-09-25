@@ -69,6 +69,9 @@ export interface Repository {
   indexError: string | null;
   fileCount: number;
   symbolCount: number;
+  aiReviewEnabled?: boolean;
+  reviewLevel?: 'balanced' | 'strict' | 'permissive';
+  customVoice?: string | null;
   createdAt: string;
   updatedAt: string;
 }

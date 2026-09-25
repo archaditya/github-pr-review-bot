@@ -20,10 +20,10 @@ async function get(req, res, next) {
 
 async function update(req, res, next) {
   try {
-    const repository = await repositoryService.setActive(
+    const repository = await repositoryService.updateSettings(
       req.user.sub,
       req.params.id,
-      req.body.isActive,
+      req.body,
     );
     res.json({ data: repository });
   } catch (err) {

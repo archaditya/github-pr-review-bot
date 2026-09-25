@@ -8,10 +8,18 @@ export function useUpdateRepository(id: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (isActive: boolean) => {
-      const { data } = await apiClient.patch<{ data: Repository }>(`/repositories/${id}`, {
-        isActive,
-      });
+    mutationFn: async (
+      payload:
+        | {
+            isActive?: boolean;
+            aiReviewEnabled?: boolean;
+            reviewLevel?: 'balanced' | 'strict' | 'permissive';
+            customVoice?: string | null;
+          }
+        | boolean
+    ) => {
+      const body = typeof payload === 'boolean' ? { isActive: payload } : payload;
+      const { data } = await apiClient.patch<{ data: Repository }>(`/repositories/${id}`, body);
       return data.data;
     },
     onSuccess: (repository) => {
