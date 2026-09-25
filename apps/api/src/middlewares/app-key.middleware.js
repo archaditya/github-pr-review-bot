@@ -18,6 +18,8 @@ const EXEMPT_PREFIXES = [
   '/auth',
   '/api/auth',
   '/api/inngest',
+  '/media',
+  '/api/media',
 ];
 
 function isExempt(path) {

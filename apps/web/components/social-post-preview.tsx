@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCircle2, AlertCircle, Twitter, Linkedin, ImageIcon, Loader2, Send } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Twitter, Linkedin, Instagram, Facebook, ImageIcon, Loader2, Send } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +32,22 @@ const PLATFORM_CONFIG = {
     color: 'text-[#0A66C2]',
     bgColor: 'bg-[#0A66C2]/5',
     borderColor: 'border-[#0A66C2]/20',
+  },
+  instagram: {
+    label: 'Instagram',
+    Icon: Instagram,
+    charLimit: 2200,
+    color: 'text-[#E1306C]',
+    bgColor: 'bg-[#E1306C]/5',
+    borderColor: 'border-[#E1306C]/20',
+  },
+  facebook: {
+    label: 'Facebook',
+    Icon: Facebook,
+    charLimit: 5000,
+    color: 'text-[#1877F2]',
+    bgColor: 'bg-[#1877F2]/5',
+    borderColor: 'border-[#1877F2]/20',
   },
 } as const;
 
@@ -180,7 +196,7 @@ export function SocialPostPreview({
             <textarea
               value={localText}
               onChange={(e) => setLocalText(e.target.value)}
-              rows={post.platform === 'linkedin' ? 8 : 4}
+              rows={['linkedin', 'instagram', 'facebook'].includes(post.platform) ? 7 : 4}
               className="w-full rounded-md border border-border bg-background p-3 text-sm font-mono resize-y focus:outline-none focus:ring-1 focus:ring-primary"
             />
             <div className="flex items-center justify-between">

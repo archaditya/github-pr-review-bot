@@ -9,6 +9,8 @@ import {
   PenSquare,
   Twitter,
   Linkedin,
+  Instagram,
+  Facebook,
   X,
   Upload,
   CheckCircle2,
@@ -51,8 +53,8 @@ const PIPELINE_STEPS = [
     icon: Zap,
   },
   {
-    label: 'Drafting X & LinkedIn Content',
-    detail: 'Generating tailored 280-char hook for X and deep-dive story for LinkedIn...',
+    label: 'Drafting 4-Platform Social Content',
+    detail: 'Generating tailored hooks for X, LinkedIn, Instagram, and Facebook...',
     icon: Bot,
   },
   {
@@ -207,7 +209,7 @@ export default function CreatePostPage() {
           Create Social Post
         </h1>
         <p className="text-sm text-muted-foreground font-mono">
-          Share your ideas, progress, or updates on X and LinkedIn
+          Share your ideas, progress, or updates on X, LinkedIn, Instagram & Facebook
         </p>
       </div>
 
@@ -348,7 +350,7 @@ export default function CreatePostPage() {
                   ) : (
                     <Send className="h-3.5 w-3.5" />
                   )}
-                  {publishAll.isPending ? 'Publishing...' : 'Publish Both'}
+                  {publishAll.isPending ? 'Publishing...' : 'Publish All (4 Platforms)'}
                 </Button>
 
                 <Button variant="ghost" size="sm" onClick={handleReset} className="font-mono text-xs">
@@ -541,11 +543,10 @@ export default function CreatePostPage() {
                 className="flex items-center justify-between rounded-lg border border-border/60 bg-card/40 p-3 text-xs font-mono"
               >
                 <div className="flex items-center gap-3">
-                  {post.platform === 'x' ? (
-                    <Twitter className="h-3.5 w-3.5 text-foreground" />
-                  ) : (
-                    <Linkedin className="h-3.5 w-3.5 text-[#0A66C2]" />
-                  )}
+                  {post.platform === 'x' && <Twitter className="h-3.5 w-3.5 text-foreground" />}
+                  {post.platform === 'linkedin' && <Linkedin className="h-3.5 w-3.5 text-[#0A66C2]" />}
+                  {post.platform === 'instagram' && <Instagram className="h-3.5 w-3.5 text-[#E1306C]" />}
+                  {post.platform === 'facebook' && <Facebook className="h-3.5 w-3.5 text-[#1877F2]" />}
                   <span className="text-foreground truncate max-w-md">
                     {(post.editedText || post.draftText).slice(0, 80)}
                     {(post.editedText || post.draftText).length > 80 ? '...' : ''}

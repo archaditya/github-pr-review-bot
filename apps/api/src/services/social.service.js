@@ -5,8 +5,26 @@ const githubPr = require('../integrations/github/pull-request-client');
 const aiService = require('../integrations/ai-service-client');
 const xClient = require('../integrations/social/x-client');
 const linkedinClient = require('../integrations/social/linkedin-client');
+const metaClient = require('../integrations/social/meta-client');
 const repositoryService = require('./repository.service');
 const logger = require('../utils/logger');
+
+const SUPPORTED_PLATFORMS = ['x', 'linkedin', 'instagram', 'facebook'];
+
+function getDraftForPlatform(drafts, platform) {
+  switch (platform) {
+    case 'x':
+      return drafts.x_draft;
+    case 'linkedin':
+      return drafts.linkedin_draft;
+    case 'instagram':
+      return drafts.instagram_draft || drafts.x_draft;
+    case 'facebook':
+      return drafts.facebook_draft || drafts.linkedin_draft;
+    default:
+      return '';
+  }
+}
 
 /**
  * Per-repo tone/voice mapping. Each project gets its own personality for social posts.
@@ -123,8 +141,8 @@ async function generateFromPR(userId, pullRequestId) {
 
   // Upsert social posts (one per platform)
   const posts = [];
-  for (const platform of ['x', 'linkedin']) {
-    const draftText = platform === 'x' ? drafts.x_draft : drafts.linkedin_draft;
+  for (const platform of SUPPORTED_PLATFORMS) {
+    const draftText = getDraftForPlatform(drafts, platform);
 
     const [post] = await db.SocialPost.findOrCreate({
       where: { pullRequestId, platform },
@@ -168,8 +186,8 @@ async function generateStandalone(userId, { input, repoContext, imageUrl }) {
   const finalImageUrl = imageUrl || drafts.image_url || drafts.imageUrl || null;
 
   const posts = [];
-  for (const platform of ['x', 'linkedin']) {
-    const draftText = platform === 'x' ? drafts.x_draft : drafts.linkedin_draft;
+  for (const platform of SUPPORTED_PLATFORMS) {
+    const draftText = getDraftForPlatform(drafts, platform);
     const post = await db.SocialPost.create({
       platform,
       draftText,
@@ -267,6 +285,22 @@ async function publishAll(userId, postIds) {
           status: 'published',
           publishedAt: new Date(),
           externalPostId: result.postUrn,
+          error: null,
+        });
+      } else if (post.platform === 'facebook') {
+        const result = await metaClient.postToFacebookPage({ text, imageUrl: post.imageUrl });
+        await post.update({
+          status: 'published',
+          publishedAt: new Date(),
+          externalPostId: result.postId,
+          error: null,
+        });
+      } else if (post.platform === 'instagram') {
+        const result = await metaClient.postToInstagram({ caption: text, imageUrl: post.imageUrl });
+        await post.update({
+          status: 'published',
+          publishedAt: new Date(),
+          externalPostId: result.postId,
           error: null,
         });
       }

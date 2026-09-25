@@ -97,7 +97,7 @@ export function SocialPostPanel({ pullRequestId }: SocialPostPanelProps) {
               ) : (
                 <Send className="h-3.5 w-3.5" />
               )}
-              {publishAll.isPending ? 'Publishing...' : 'Publish Both'}
+              {publishAll.isPending ? 'Publishing...' : 'Publish All Platforms'}
             </Button>
           )}
         </div>

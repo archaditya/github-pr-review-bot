@@ -63,6 +63,11 @@ const config = {
       accessToken: env.LINKEDIN_ACCESS_TOKEN,
       personUrn: env.LINKEDIN_PERSON_URN,
     },
+    meta: {
+      pageAccessToken: env.META_PAGE_ACCESS_TOKEN,
+      pageId: env.META_PAGE_ID,
+      instagramAccountId: env.META_INSTAGRAM_ACCOUNT_ID,
+    },
     openaiApiKey: env.OPENAI_API_KEY,
   },
 

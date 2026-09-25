@@ -120,7 +120,7 @@ export interface ApiKey {
   rawKey?: string;
 }
 
-export type SocialPlatform = 'x' | 'linkedin';
+export type SocialPlatform = 'x' | 'linkedin' | 'instagram' | 'facebook';
 export type SocialPostStatus = 'draft' | 'approved' | 'published' | 'failed';
 
 export interface SocialPost {

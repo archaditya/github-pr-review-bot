@@ -30,6 +30,19 @@ SOCIAL_DRAFT_SCHEMA = {
                 "type": "string",
                 "description": "Professional, detailed post for LinkedIn. Can be longer and more explanatory.",
             },
+            "instagram_draft": {
+                "type": "string",
+                "description": (
+                    "Visual, engaging caption for Instagram. Hook in first 125 chars, followed by clean line breaks, "
+                    "key tech highlights with emojis, and 5-8 relevant developer hashtags at the end."
+                ),
+            },
+            "facebook_draft": {
+                "type": "string",
+                "description": (
+                    "Conversational, community-focused update for Facebook Page. Friendly, clear, and highlights what was built and why."
+                ),
+            },
             "image_prompt": {
                 "type": "string",
                 "description": (
@@ -39,7 +52,7 @@ SOCIAL_DRAFT_SCHEMA = {
                 ),
             },
         },
-        "required": ["x_draft", "linkedin_draft", "image_prompt"],
+        "required": ["x_draft", "linkedin_draft", "instagram_draft", "facebook_draft", "image_prompt"],
         "additionalProperties": False,
     },
 }
@@ -47,7 +60,7 @@ SOCIAL_DRAFT_SCHEMA = {
 
 def _build_system_prompt(repo_name: str, repo_voice: str) -> str:
     return f"""You are a senior developer advocate and content creator for a software engineer named Aditya.
-You generate social media posts and technical whiteboard diagrams announcing completed engineering features, architectural milestones, and major product updates.
+You generate social media posts and technical whiteboard diagrams announcing completed engineering features, architectural milestones, and major product updates across 4 platforms: X, LinkedIn, Instagram, and Facebook.
 
 PROJECT CONTEXT:
 - Project: {repo_name}
@@ -77,6 +90,17 @@ PLATFORM RULES:
 - 2-4 clean, scannable paragraphs (Hook -> Technical breakdown of the diff -> Key takeaway)
 - Include 3-5 relevant tech hashtags
 
+**Instagram:**
+- Visual-first caption paired with the architecture diagram
+- Strong hook in the first 1-2 sentences
+- Clean line breaks with bullet emojis for tech details
+- Conclude with 5-8 relevant tech hashtags (#softwareengineer #buildinpublic #systemdesign #devlife #coding)
+
+**Facebook:**
+- Community-oriented, conversational post for the Facebook Page
+- 2-3 engaging paragraphs explaining what was built and why it matters
+- Clear, approachable tone inviting feedback or discussion
+
 **IMAGE DIAGRAM PROMPT (image_prompt):**
 You must write a rich, tailored prompt for OpenAI's Image API to generate an authentic developer whiteboard sketch.
 Requirements for image_prompt:
@@ -89,7 +113,7 @@ Requirements for image_prompt:
 
 RULES:
 - Write as Aditya (first person: "I", "my", "we")
-- Both posts and image prompt must be fully formed and ready to use without placeholders."""
+- All 4 posts and image prompt must be fully formed and ready to use without placeholders."""
 
 
 def _build_user_message(request: SocialDraftRequest) -> str:
@@ -192,6 +216,8 @@ async def generate_social_drafts(request: SocialDraftRequest) -> SocialDraftResp
     # Validate and enforce X character limit
     x_draft = raw.get("x_draft", "")
     linkedin_draft = raw.get("linkedin_draft", "")
+    instagram_draft = raw.get("instagram_draft", "")
+    facebook_draft = raw.get("facebook_draft", "")
     image_prompt = raw.get("image_prompt", "")
 
     if len(x_draft) > 280:
@@ -207,11 +233,19 @@ async def generate_social_drafts(request: SocialDraftRequest) -> SocialDraftResp
             logger.warning("image generation step encountered error: %s", exc)
 
     logger.info(
-        "generated social drafts (X: %d chars, LinkedIn: %d chars, image: %s)",
+        "generated social drafts (X: %d chars, LI: %d chars, IG: %d chars, FB: %d chars, image: %s)",
         len(x_draft),
         len(linkedin_draft),
+        len(instagram_draft),
+        len(facebook_draft),
         "yes" if image_url else "no",
     )
 
-    return SocialDraftResponse(x_draft=x_draft, linkedin_draft=linkedin_draft, image_url=image_url)
+    return SocialDraftResponse(
+        x_draft=x_draft,
+        linkedin_draft=linkedin_draft,
+        instagram_draft=instagram_draft,
+        facebook_draft=facebook_draft,
+        image_url=image_url,
+    )
 

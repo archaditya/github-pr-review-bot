@@ -7,6 +7,7 @@ const reviewJobRoutes = require('./review-jobs.routes');
 const apiKeyRoutes = require('./api-keys.routes');
 const socialRoutes = require('./social.routes');
 const mergeRoutes = require('./merge.routes');
+const mediaRoutes = require('./media.routes');
 
 const router = Router();
 
@@ -18,6 +19,7 @@ router.use('/review-jobs', reviewJobRoutes);
 router.use('/api-keys', apiKeyRoutes);
 router.use('/social-posts', socialRoutes);
 router.use('/pull-requests', mergeRoutes);
+router.use('/media', mediaRoutes);
 
 module.exports = router;
 

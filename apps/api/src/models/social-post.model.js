@@ -1,6 +1,11 @@
 const { DataTypes, Model } = require('sequelize');
 
-const SOCIAL_PLATFORMS = { X: 'x', LINKEDIN: 'linkedin' };
+const SOCIAL_PLATFORMS = {
+  X: 'x',
+  LINKEDIN: 'linkedin',
+  INSTAGRAM: 'instagram',
+  FACEBOOK: 'facebook',
+};
 const SOCIAL_POST_STATUSES = { DRAFT: 'draft', APPROVED: 'approved', PUBLISHED: 'published', FAILED: 'failed' };
 
 module.exports = (sequelize) => {
@@ -26,7 +31,7 @@ module.exports = (sequelize) => {
         references: { model: 'pull_requests', key: 'id' },
       },
       platform: {
-        type: DataTypes.STRING(10),
+        type: DataTypes.STRING(20),
         allowNull: false,
         validate: {
           isIn: [Object.values(SOCIAL_PLATFORMS)],
