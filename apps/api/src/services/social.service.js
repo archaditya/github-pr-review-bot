@@ -191,6 +191,17 @@ async function generateStandalone(userId, { input, repoContext, imageUrl }) {
     );
   }
 
+  // Enforce monthly quota for non-admin users
+  if (user && user.role !== 'admin') {
+    const quota = user.features?.social_monthly_quota ?? 20;
+    const currentUsage = user.usage?.post_count || 0;
+    if (quota > 0 && currentUsage >= quota) {
+      throw new ValidationError(
+        `Monthly social post quota of ${quota} reached. Please contact admin to increase your limit.`
+      );
+    }
+  }
+
   const drafts = await aiService.generateSocialDrafts({
     diff: '',
     review_summary: '',
@@ -297,44 +308,72 @@ async function publishAll(userId, postIds) {
   for (const post of posts) {
     const text = post.editedText || post.draftText;
     try {
+      let postUrl = null;
       if (post.platform === 'x') {
         const result = await xClient.postTweet({ text, imageUrl: post.imageUrl });
+        postUrl = result.tweetId ? `https://x.com/i/status/${result.tweetId}` : null;
         await post.update({
           status: 'published',
           publishedAt: new Date(),
           externalPostId: result.tweetId,
+          postUrl,
           error: null,
         });
       } else if (post.platform === 'linkedin') {
         const result = await linkedinClient.postArticle({ text, imageUrl: post.imageUrl });
+        postUrl = result.postUrn ? `https://www.linkedin.com/feed/update/${result.postUrn}` : null;
         await post.update({
           status: 'published',
           publishedAt: new Date(),
           externalPostId: result.postUrn,
+          postUrl,
           error: null,
         });
       } else if (post.platform === 'facebook') {
         const result = await metaClient.postToFacebookPage({ text, imageUrl: post.imageUrl });
+        postUrl = result.postId ? `https://facebook.com/${result.postId}` : null;
         await post.update({
           status: 'published',
           publishedAt: new Date(),
           externalPostId: result.postId,
+          postUrl,
           error: null,
         });
       } else if (post.platform === 'instagram') {
         const result = await metaClient.postToInstagram({ caption: text, imageUrl: post.imageUrl });
+        postUrl = result.permalink || (result.postId ? `https://www.instagram.com/p/${result.postId}/` : null);
         await post.update({
           status: 'published',
           publishedAt: new Date(),
           externalPostId: result.postId,
+          postUrl,
           error: null,
         });
       }
-      results.push({ id: post.id, platform: post.platform, status: 'published' });
+      results.push({ id: post.id, platform: post.platform, status: 'published', postUrl });
     } catch (err) {
       logger.error({ err: err.message, postId: post.id, platform: post.platform }, 'failed to publish social post');
       await post.update({ status: 'failed', error: err.message });
       results.push({ id: post.id, platform: post.platform, status: 'failed', error: err.message });
+    }
+  }
+
+  // Increment usage count for non-admin user
+  if (userId) {
+    try {
+      const user = await db.User.findByPk(userId);
+      const publishedCount = results.filter((r) => r.status === 'published').length;
+      if (user && user.role !== 'admin' && publishedCount > 0) {
+        const currentCount = user.usage?.post_count || 0;
+        await user.update({
+          usage: {
+            ...(user.usage || {}),
+            post_count: currentCount + publishedCount,
+          },
+        });
+      }
+    } catch (err) {
+      logger.warn({ err: err.message }, 'failed to update user post usage count');
     }
   }
 

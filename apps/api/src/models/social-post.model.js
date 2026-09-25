@@ -65,6 +65,10 @@ module.exports = (sequelize) => {
         type: DataTypes.STRING,
         allowNull: true,
       },
+      postUrl: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
       error: {
         type: DataTypes.TEXT,
         allowNull: true,
