@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+from typing import Optional
 
 from openai import APIError, APITimeoutError, RateLimitError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
