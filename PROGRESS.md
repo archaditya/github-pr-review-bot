@@ -121,6 +121,22 @@ needs a real run before being trusted the way the earlier batch can be.
 
 ---
 
+## Multi-Tenant BYOK & Admin Platform (v2.0)
+
+| Capability / Module | Status | Notes |
+|---|---|---|
+| AES-256-GCM API Key Encryption | ✅ | `apps/api/src/utils/crypto.js` |
+| Multi-tenant User Schema & BYOK Mode | ✅ | `role`, `status`, `features`, `usage`, `openai_api_key_encrypted` |
+| Request-Scoped AI Key Injection | ✅ | `apps/api/src/integrations/ai-service-client/client.js` + `apps/ai-service/app/core/openai_client.py` |
+| Admin Dashboard (`/admin`) | ✅ | Super Admin user approval, suspension, role assignment, and granular feature modals |
+| User Settings (`/settings`) | ✅ | BYOK key input, live validation test, platform opt-ins, feature quotas |
+| Post Management Hub (`/posts`) | ✅ | Centralized filtering (status & platform), editing, direct retry, image modal |
+| Per-Repository Review Controls | ✅ | Auto-review toggle, sensitivity level (`balanced`/`strict`/`permissive`), custom repo voice |
+| Social Quotas & Post URLs | ✅ | Monthly quota enforcement, live URL capture across X, LinkedIn, FB, IG |
+
+
+---
+
 ## infra / docker / CI
 
 | Item | Status | Notes |
