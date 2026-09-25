@@ -29,12 +29,16 @@ class ChatAgentError(Exception):
     wait=wait_exponential(multiplier=1, min=1, max=4),
     retry=retry_if_exception_type((APITimeoutError, RateLimitError)),
 )
-async def classify_chat_intent(question: str, schema_summary: dict | None = None) -> ChatClassificationResult:
+async def classify_chat_intent(
+    question: str,
+    schema_summary: dict | None = None,
+    api_key: str | None = None,
+) -> ChatClassificationResult:
     """
     Fast, cheap classification using gpt-4o-mini.
     Extracts intent (structural, semantic, overview, greeting), query_type, entities, and file hints.
     """
-    client = get_openai_client()
+    client = get_openai_client(api_key=api_key)
 
     schema_block = json.dumps(schema_summary, indent=2) if schema_summary else "None available"
     user_content = f"## Repository Schema Summary:\n{schema_block}\n\n## User Question:\n{question}"
@@ -103,11 +107,12 @@ async def stream_chat_reply(
     graph_context: str,
     history: list[ChatTurn],
     repo_name: str | None = None,
+    api_key: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Streams tokens using gpt-4o for accurate, deeply grounded repository answers.
     """
-    client = get_openai_client()
+    client = get_openai_client(api_key=api_key)
     messages = _build_generation_messages(question, graph_context, history, repo_name)
 
     try:

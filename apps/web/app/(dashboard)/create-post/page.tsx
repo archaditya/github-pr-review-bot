@@ -18,11 +18,14 @@ import {
   Layers,
   Bot,
   Zap,
+  AlertTriangle,
 } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SocialPostPreview } from '@/components/social-post-preview';
 import type { SocialPost } from '@/types/api';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import {
   useGenerateStandaloneDrafts,
   useUpdateSocialDraft,
@@ -74,6 +77,7 @@ export default function CreatePostPage() {
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { data: user } = useCurrentUser();
   const generateDrafts = useGenerateStandaloneDrafts();
   const updateDraft = useUpdateSocialDraft();
   const publishAll = usePublishAllPosts();
@@ -212,6 +216,22 @@ export default function CreatePostPage() {
           Share your ideas, progress, or updates on X, LinkedIn, Instagram & Facebook
         </p>
       </div>
+
+      {user && user.role !== 'admin' && !user.hasOpenaiKey && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-400 font-mono">
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+            <span>
+              You haven't configured your personal OpenAI API Key yet. Bring-Your-Own-Key is required to generate drafts.
+            </span>
+          </div>
+          <Link href="/settings">
+            <Button size="sm" variant="outline" className="text-xs h-7 border-amber-500/30 text-amber-400 hover:bg-amber-500/20 whitespace-nowrap">
+              Configure Key
+            </Button>
+          </Link>
+        </div>
+      )}
 
       {/* Input Section */}
       <Card className="bg-card/60">

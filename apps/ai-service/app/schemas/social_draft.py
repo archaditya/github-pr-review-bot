@@ -18,6 +18,7 @@ class SocialDraftRequest(BaseModel):
     changed_files: List[str] = Field(default_factory=list)
     author: str = ""
     standalone_input: Optional[str] = None  # non-empty for standalone (non-PR) posts
+    openai_api_key: Optional[str] = None  # BYOK key if provided by user
 
 
 class SocialDraftResponse(BaseModel):

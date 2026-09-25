@@ -20,7 +20,11 @@ async def generate_reply_endpoint(payload: ConversationRequest) -> ConversationR
     capped_history = cap_history(payload.message_history)
 
     try:
-        reply = await generate_reply(findings=payload.findings, history=capped_history)
+        reply = await generate_reply(
+            findings=payload.findings,
+            history=capped_history,
+            api_key=payload.openai_api_key,
+        )
     except ConversationGenerationError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 

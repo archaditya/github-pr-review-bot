@@ -95,6 +95,7 @@ class ReviewRequest(BaseModel):
     usage_context: List[ChangedFileContext] = Field(default_factory=list)
     impact_context: Optional[ImpactContext] = None
     pull_request: Optional[PullRequestMeta] = None
+    openai_api_key: Optional[str] = None
 
     @field_validator("diff", mode="before")
     @classmethod

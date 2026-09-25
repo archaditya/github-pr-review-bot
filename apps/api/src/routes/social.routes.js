@@ -1,5 +1,4 @@
-const { Router } = require('express');
-const requireAuth = require('../middlewares/auth.middleware');
+const { requireAuth, requireEntitlement } = require('../middlewares/auth.middleware');
 const validate = require('../middlewares/validate.middleware');
 const socialController = require('../controllers/social.controller');
 const {
@@ -12,6 +11,7 @@ const {
 const router = Router();
 
 router.use(requireAuth);
+router.use(requireEntitlement('can_social_studio'));
 
 // PR-triggered draft generation
 router.post('/generate', validate(generateFromPRSchema), socialController.generateFromPR);

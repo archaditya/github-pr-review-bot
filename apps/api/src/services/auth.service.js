@@ -26,7 +26,11 @@ function buildLoginRedirect() {
 }
 
 function issueToken(user) {
-  return jwt.sign({ sub: user.id }, config.auth.jwtSecret, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign(
+    { sub: user.id, role: user.role || 'user', status: user.status || 'active' },
+    config.auth.jwtSecret,
+    { expiresIn: JWT_EXPIRES_IN },
+  );
 }
 
 /**
@@ -41,20 +45,48 @@ async function completeLogin({ code }) {
   });
   const profile = await oauthClient.fetchAuthenticatedUser(accessToken);
 
-  const [user] = await db.User.findOrCreate({
+  const isSuperAdmin = (profile.login && profile.login.toLowerCase() === 'archaditya') ||
+    (await db.User.count()) === 0;
+
+  const [user, created] = await db.User.findOrCreate({
     where: { githubUserId: profile.id },
     defaults: {
       githubUserId: profile.id,
       email: profile.email || null,
       name: profile.name || profile.login,
+      role: isSuperAdmin ? 'admin' : 'user',
+      status: 'active',
+      features: isSuperAdmin ? {
+        can_review_prs: true,
+        can_repo_chat: true,
+        can_social_studio: true,
+        allowed_social_platforms: ['x', 'linkedin', 'instagram', 'facebook'],
+        social_monthly_quota: 0,
+        ai_provider_mode: 'managed',
+        max_indexed_repos: 50,
+      } : {
+        can_review_prs: true,
+        can_repo_chat: true,
+        can_social_studio: true,
+        allowed_social_platforms: ['linkedin', 'instagram', 'facebook'],
+        social_monthly_quota: 20,
+        ai_provider_mode: 'byok_only',
+        max_indexed_repos: 5,
+      },
     },
   });
 
-  // Keep profile fields reasonably fresh on repeat logins without a separate "sync" step.
-  await user.update({
+  const updates = {
     email: profile.email || user.email,
     name: profile.name || profile.login || user.name,
-  });
+    lastActiveAt: new Date(),
+  };
+
+  if (isSuperAdmin && user.role !== 'admin') {
+    updates.role = 'admin';
+  }
+
+  await user.update(updates);
 
   // Link any installations for this account to this user
   await db.Installation.update(

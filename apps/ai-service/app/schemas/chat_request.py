@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 class ChatClassifierRequest(BaseModel):
     question: str
     schema_summary: Optional[dict] = None
+    openai_api_key: Optional[str] = None
 
 
 class ChatClassificationResult(BaseModel):
@@ -25,3 +26,5 @@ class ChatGenerateRequest(BaseModel):
     graph_context: str
     history: list[ChatTurn] = Field(default_factory=list)
     repo_name: Optional[str] = None
+    openai_api_key: Optional[str] = None
+

@@ -143,8 +143,8 @@ def _build_user_message(request: SocialDraftRequest) -> str:
     wait=wait_exponential(multiplier=1, min=1, max=4),
     retry=retry_if_exception_type((APITimeoutError, RateLimitError)),
 )
-async def _call_model(system_prompt: str, user_message: str) -> dict:
-    client = get_openai_client()
+async def _call_model(system_prompt: str, user_message: str, api_key: Optional[str] = None) -> dict:
+    client = get_openai_client(api_key=api_key)
 
     completion = await client.chat.completions.create(
         model=settings.openai_model,  # gpt-4o-mini — fast and cheap for social drafts
@@ -160,7 +160,7 @@ async def _call_model(system_prompt: str, user_message: str) -> dict:
     return json.loads(raw_content)
 
 
-async def _generate_dalle_image(image_prompt: str) -> str | None:
+async def _generate_dalle_image(image_prompt: str, api_key: Optional[str] = None) -> str | None:
     """
     Generate a technical Excalidraw/whiteboard system design diagram using OpenAI Image API.
     Tries gpt-image-2.5-flare (OpenAI 2026 flagship image model), falling back to gpt-image-1 or dall-e-2.
@@ -169,7 +169,7 @@ async def _generate_dalle_image(image_prompt: str) -> str | None:
     if not image_prompt:
         return None
 
-    client = get_openai_client()
+    client = get_openai_client(api_key=api_key)
     candidate_models = ["gpt-image-2.5-flare", "gpt-image-1", "dall-e-2"]
 
     for model_name in candidate_models:
@@ -205,7 +205,7 @@ async def generate_social_drafts(request: SocialDraftRequest) -> SocialDraftResp
     user_message = _build_user_message(request)
 
     try:
-        raw = await _call_model(system_prompt, user_message)
+        raw = await _call_model(system_prompt, user_message, api_key=request.openai_api_key)
     except (APIError, APITimeoutError, RateLimitError) as exc:
         logger.error("openai call failed for social draft: %s", exc)
         raise SocialDraftGenerationError("OpenAI call failed") from exc
@@ -228,7 +228,7 @@ async def generate_social_drafts(request: SocialDraftRequest) -> SocialDraftResp
     image_url = None
     if image_prompt:
         try:
-            image_url = await _generate_dalle_image(image_prompt)
+            image_url = await _generate_dalle_image(image_prompt, api_key=request.openai_api_key)
         except Exception as exc:
             logger.warning("image generation step encountered error: %s", exc)
 

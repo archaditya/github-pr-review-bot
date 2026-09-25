@@ -17,7 +17,11 @@ router = APIRouter()
 @router.post("/classify", response_model=ChatClassificationResult)
 async def classify(request: ChatClassifierRequest) -> ChatClassificationResult:
     """Fast classification endpoint using gpt-4o-mini."""
-    return await classify_chat_intent(request.question, request.schema_summary)
+    return await classify_chat_intent(
+        request.question,
+        request.schema_summary,
+        api_key=request.openai_api_key,
+    )
 
 
 @router.post("/generate")
@@ -35,6 +39,7 @@ async def generate(request: ChatGenerateRequest) -> StreamingResponse:
                 graph_context=request.graph_context,
                 history=request.history,
                 repo_name=request.repo_name,
+                api_key=request.openai_api_key,
             ):
                 payload = json.dumps({"token": token})
                 yield f"data: {payload}\n\n"

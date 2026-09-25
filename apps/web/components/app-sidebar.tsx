@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LogOut, PanelLeftClose, PanelLeftOpen, Key, GitFork, Radio, PenSquare } from 'lucide-react';
+import { LogOut, PanelLeftClose, PanelLeftOpen, Key, GitFork, Radio, PenSquare, Share2, Sliders, ShieldCheck } from 'lucide-react';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useRepositories } from '@/hooks/use-repositories';
 import { useWebSocket } from '@/hooks/use-web-socket';
@@ -77,6 +77,20 @@ export function AppSidebar() {
           </Link>
 
           <Link
+            href="/posts"
+            className={cn(
+              'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+              pathname.startsWith('/posts')
+                ? 'bg-primary/10 text-primary'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+            )}
+            title="Social Posts History"
+          >
+            <Share2 className="h-4 w-4 shrink-0" />
+            {!sidebarCollapsed && <span>Posts</span>}
+          </Link>
+
+          <Link
             href="/settings"
             className={cn(
               'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
@@ -84,11 +98,34 @@ export function AppSidebar() {
                 ? 'bg-primary/10 text-primary'
                 : 'text-muted-foreground hover:bg-accent hover:text-foreground',
             )}
-            title="App Keys & Settings"
+            title="Settings & BYOK"
           >
-            <Key className="h-4 w-4 shrink-0" />
-            {!sidebarCollapsed && <span>App Keys</span>}
+            <Sliders className="h-4 w-4 shrink-0" />
+            {!sidebarCollapsed && <span>Settings</span>}
           </Link>
+
+          {user?.role === 'admin' && (
+            <Link
+              href="/admin"
+              className={cn(
+                'flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                pathname === '/admin'
+                  ? 'bg-amber-500/10 text-amber-500'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+              )}
+              title="Admin Controls"
+            >
+              <div className="flex items-center gap-2.5">
+                <ShieldCheck className="h-4 w-4 shrink-0 text-amber-500" />
+                {!sidebarCollapsed && <span>Admin Panel</span>}
+              </div>
+              {!sidebarCollapsed && (
+                <span className="rounded bg-amber-500/20 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-500 uppercase">
+                  Admin
+                </span>
+              )}
+            </Link>
+          )}
         </div>
 
         {!sidebarCollapsed && (

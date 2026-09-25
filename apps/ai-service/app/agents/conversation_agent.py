@@ -46,8 +46,8 @@ def _build_user_message(findings: list[Finding], history: list[ConversationTurn]
     wait=wait_exponential(multiplier=1, min=1, max=4),
     retry=retry_if_exception_type((APITimeoutError, RateLimitError)),
 )
-async def _call_model(user_message: str) -> str:
-    client = get_openai_client()
+async def _call_model(user_message: str, api_key: str | None = None) -> str:
+    client = get_openai_client(api_key=api_key)
 
     completion = await client.chat.completions.create(
         model=settings.openai_model,
@@ -61,7 +61,11 @@ async def _call_model(user_message: str) -> str:
     return completion.choices[0].message.content or ""
 
 
-async def generate_reply(findings: list[Finding], history: list[ConversationTurn]) -> str:
+async def generate_reply(
+    findings: list[Finding],
+    history: list[ConversationTurn],
+    api_key: str | None = None,
+) -> str:
     """
     ConversationContext -> a reply string. Guardrails applied, in order:
     1. History capping (services/conversation_service.py, before this is called) — bounds
@@ -74,7 +78,7 @@ async def generate_reply(findings: list[Finding], history: list[ConversationTurn
     user_message = _build_user_message(findings, history)
 
     try:
-        reply = await _call_model(user_message)
+        reply = await _call_model(user_message, api_key=api_key)
     except (APIError, APITimeoutError, RateLimitError) as exc:
         logger.error("openai call failed for conversation reply: %s", exc)
         raise ConversationGenerationError("OpenAI call failed") from exc

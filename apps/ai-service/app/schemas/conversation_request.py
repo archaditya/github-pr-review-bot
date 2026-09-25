@@ -13,3 +13,4 @@ class ConversationTurn(BaseModel):
 class ConversationRequest(BaseModel):
     findings: List[Finding] = Field(default_factory=list)
     message_history: List[ConversationTurn] = Field(default_factory=list)
+    openai_api_key: Optional[str] = None

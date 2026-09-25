@@ -54,17 +54,48 @@ function logout(req, res) {
   res.status(204).send();
 }
 
+const { decrypt, maskApiKey } = require('../utils/crypto');
+
 async function me(req, res, next) {
   try {
     const user = await db.User.findByPk(req.user.sub, {
-      attributes: ['id', 'githubUserId', 'email', 'name'],
+      attributes: [
+        'id',
+        'githubUserId',
+        'email',
+        'name',
+        'role',
+        'status',
+        'features',
+        'preferences',
+        'usage',
+        'lastActiveAt',
+        'openaiApiKeyEncrypted',
+      ],
     });
 
     if (!user) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'User not found' } });
     }
 
-    return res.json({ data: user });
+    const userData = user.toJSON();
+    const hasOpenaiKey = Boolean(userData.openaiApiKeyEncrypted);
+    let maskedOpenaiKey = null;
+
+    if (hasOpenaiKey) {
+      const decrypted = decrypt(userData.openaiApiKeyEncrypted);
+      maskedOpenaiKey = maskApiKey(decrypted);
+    }
+
+    delete userData.openaiApiKeyEncrypted;
+
+    return res.json({
+      data: {
+        ...userData,
+        hasOpenaiKey,
+        maskedOpenaiKey,
+      },
+    });
   } catch (err) {
     return next(err);
   }

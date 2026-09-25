@@ -23,11 +23,37 @@ export type RepoIndexStatus =
 
 export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info';
 
+export interface UserFeatures {
+  can_review_prs?: boolean;
+  can_repo_chat?: boolean;
+  can_social_studio?: boolean;
+  allowed_social_platforms?: ('x' | 'linkedin' | 'instagram' | 'facebook')[];
+  social_monthly_quota?: number;
+  ai_provider_mode?: 'byok_only' | 'managed';
+  max_indexed_repos?: number;
+}
+
+export interface UserUsage {
+  review_count: number;
+  post_count: number;
+  chat_count: number;
+  reset_at: string | null;
+}
+
 export interface User {
   id: string;
   githubUserId: number;
   email: string | null;
   name: string | null;
+  role: 'admin' | 'user';
+  status: 'active' | 'pending' | 'suspended';
+  features: UserFeatures;
+  preferences?: Record<string, any>;
+  usage?: UserUsage;
+  hasOpenaiKey?: boolean;
+  maskedOpenaiKey?: string | null;
+  lastActiveAt?: string | null;
+  createdAt?: string;
 }
 
 export interface Repository {
@@ -115,6 +141,7 @@ export interface ApiKey {
   name: string;
   keyPrefix: string;
   isActive: boolean;
+  isRevoked?: boolean;
   lastUsedAt: string | null;
   createdAt: string;
   rawKey?: string;
@@ -133,6 +160,7 @@ export interface SocialPost {
   status: SocialPostStatus;
   publishedAt: string | null;
   externalPostId: string | null;
+  postUrl?: string | null;
   error: string | null;
   standaloneInput: string | null;
   repoContext: string | null;

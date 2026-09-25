@@ -134,8 +134,8 @@ def _build_user_message(
     wait=wait_exponential(multiplier=1, min=1, max=4),
     retry=retry_if_exception_type((APITimeoutError, RateLimitError)),
 )
-async def _call_model(user_message: str) -> dict:
-    client = get_openai_client()
+async def _call_model(user_message: str, api_key: str | None = None) -> dict:
+    client = get_openai_client(api_key=api_key)
 
     completion = await client.chat.completions.create(
         model=settings.openai_model,
@@ -156,6 +156,7 @@ async def generate_review(
     usage_context: list[ChangedFileContext],
     pull_request: PullRequestMeta,
     impact_context: ImpactContext | None = None,
+    api_key: str | None = None,
 ) -> ReviewResponse:
     """
     ReviewContext -> structured findings. Guardrails applied, in order:
@@ -181,7 +182,7 @@ async def generate_review(
     user_message = _build_user_message(capped_diff, usage_context or [], pull_request, impact_context)
 
     try:
-        raw = await _call_model(user_message)
+        raw = await _call_model(user_message, api_key=api_key)
     except (APIError, APITimeoutError, RateLimitError) as exc:
         logger.error("openai call failed for %s: %s", pr_label, exc)
         raise ReviewGenerationError("OpenAI call failed") from exc
