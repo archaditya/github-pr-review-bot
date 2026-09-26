@@ -20,6 +20,9 @@ import {
   Sparkles,
   Info,
   DollarSign,
+  BookOpen,
+  ExternalLink,
+  HelpCircle,
 } from 'lucide-react';
 import { useApiKeys, useCreateApiKey, useRevokeApiKey, useDeleteApiKey } from '@/hooks/use-api-keys';
 import {
@@ -293,6 +296,45 @@ export default function SettingsPage() {
               </div>
             )}
 
+            {/* Step-by-Step OpenAI Key Guide */}
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-primary font-medium text-sm">
+                  <BookOpen className="h-4 w-4 shrink-0" />
+                  <span>How to Get Your OpenAI API Key</span>
+                </div>
+                <a
+                  href="https://platform.openai.com/api-keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-mono bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded w-fit"
+                >
+                  <span>Open OpenAI Console</span>
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-muted-foreground pt-1">
+                <div className="rounded-md bg-background/80 p-3 border border-border/60 space-y-1">
+                  <p className="font-semibold text-foreground">1. Sign In & Add Credits</p>
+                  <p>
+                    Log in at <a href="https://platform.openai.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">platform.openai.com</a>. Under <strong>Settings &gt; Billing</strong>, make sure you have at least $5 pre-funded credit balance.
+                  </p>
+                </div>
+                <div className="rounded-md bg-background/80 p-3 border border-border/60 space-y-1">
+                  <p className="font-semibold text-foreground">2. Create New Secret Key</p>
+                  <p>
+                    Navigate to <strong>Dashboard &gt; API keys</strong>. Click <strong>+ Create new secret key</strong> and give it a name like <code className="text-primary font-mono">pr-bot</code>.
+                  </p>
+                </div>
+                <div className="rounded-md bg-background/80 p-3 border border-border/60 space-y-1">
+                  <p className="font-semibold text-foreground">3. Copy & Test Here</p>
+                  <p>
+                    Copy the secret key (<code className="text-primary font-mono">sk-proj-...</code>). Paste it in the input below and click <strong>Test Key Validity</strong> to verify before saving.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Key Input Form */}
             <form onSubmit={handleSaveKey} className="space-y-4 pt-2">
               <div>
@@ -514,6 +556,66 @@ export default function SettingsPage() {
                     className="rounded border-border text-primary"
                   />
                   <span>{selectedPlatforms.includes('x') ? 'Enabled' : 'Disabled (Cost Saver)'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Social Media API Keys & Setup Guide */}
+            <div className="rounded-lg border border-border bg-card/60 p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <HelpCircle className="h-4 w-4 text-primary" />
+                  <span>How to Get Social Media Developer Keys &amp; Accounts</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-muted-foreground">
+                {/* LinkedIn Guide */}
+                <div className="rounded-md border border-blue-500/20 bg-blue-500/5 p-3.5 space-y-2">
+                  <div className="flex items-center justify-between font-semibold text-blue-400">
+                    <span>LinkedIn API (Free)</span>
+                    <a href="https://www.linkedin.com/developers/apps" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] hover:underline">
+                      Developer Portal <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                  <p>1. Go to LinkedIn Developers and click <strong>Create App</strong>.</p>
+                  <p>2. Under <strong>Products</strong>, request <em>Share on LinkedIn</em>.</p>
+                  <p>3. Generate an OAuth access token with scope <code className="text-blue-300 font-mono">w_member_social</code>.</p>
+                </div>
+
+                {/* Meta Guide */}
+                <div className="rounded-md border border-pink-500/20 bg-pink-500/5 p-3.5 space-y-2">
+                  <div className="flex items-center justify-between font-semibold text-pink-400">
+                    <span>Instagram &amp; Facebook (Free)</span>
+                    <a href="https://developers.facebook.com/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] hover:underline">
+                      Meta Portal <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                  <p>1. Create an app of type <strong>Business</strong> on Meta for Developers.</p>
+                  <p>2. Create a Facebook Page and link your Instagram Professional account to that Page.</p>
+                  <p>3. Generate a Page Access Token with permissions: <code className="text-pink-300 font-mono">pages_manage_posts, instagram_content_publish</code>.</p>
+                </div>
+
+                {/* X Guide */}
+                <div className="rounded-md border border-amber-500/20 bg-amber-500/5 p-3.5 space-y-2">
+                  <div className="flex items-center justify-between font-semibold text-amber-400">
+                    <span>X / Twitter (Paid Tier)</span>
+                    <a href="https://developer.x.com/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] hover:underline">
+                      X Developer Portal <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                  <p>1. Sign in to X Developer Portal and create a Project.</p>
+                  <p>2. Requires the <strong>Basic Tier</strong> ($100/mo) for write access to post tweets via API.</p>
+                  <p>3. Generate API Key, API Secret, Access Token, and Access Secret with Read &amp; Write permissions.</p>
+                </div>
+
+                {/* Managed Posting Notice */}
+                <div className="rounded-md border border-border bg-background/50 p-3.5 space-y-2">
+                  <div className="font-semibold text-foreground">
+                    Admin Managed Posting
+                  </div>
+                  <p>
+                    Don&apos;t want to set up your own social developer accounts? Contact the administrator (Aditya) to post directly through the platform&apos;s verified developer integrations.
+                  </p>
                 </div>
               </div>
             </div>
