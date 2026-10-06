@@ -8,6 +8,14 @@ const logger = require('../../utils/logger');
 const META_GRAPH_BASE = 'https://graph.facebook.com/v20.0';
 const MEDIA_DIR = process.env.MEDIA_CACHE_DIR || '/tmp/pr-review-media';
 
+function extractMetaErrorMessage(err) {
+  const metaErr = err.response?.data?.error;
+  if (metaErr) {
+    return `${metaErr.message} (Code: ${metaErr.code || 'none'}, Subcode: ${metaErr.error_subcode || 'none'})`;
+  }
+  return err.message;
+}
+
 /**
  * Ensures an image URL is a publicly accessible HTTPS URL.
  * If given a base64 data URI, saves it to disk and serves it from this API's /api/media route.
@@ -59,30 +67,34 @@ async function postToFacebookPage({ text, imageUrl }) {
 
   const publicImageUrl = ensurePublicImageUrl(imageUrl);
 
-  if (publicImageUrl) {
-    logger.info({ pageId }, 'publishing photo post to Facebook Page');
+  try {
+    if (publicImageUrl) {
+      logger.info({ pageId }, 'publishing photo post to Facebook Page');
+      const res = await axios.post(
+        `${META_GRAPH_BASE}/${pageId}/photos`,
+        {
+          url: publicImageUrl,
+          caption: text,
+          access_token: pageAccessToken,
+        },
+        { timeout: 30000 }
+      );
+      return { postId: res.data.post_id || res.data.id };
+    }
+
+    logger.info({ pageId }, 'publishing text post to Facebook Page');
     const res = await axios.post(
-      `${META_GRAPH_BASE}/${pageId}/photos`,
+      `${META_GRAPH_BASE}/${pageId}/feed`,
       {
-        url: publicImageUrl,
-        caption: text,
+        message: text,
         access_token: pageAccessToken,
       },
       { timeout: 30000 }
     );
-    return { postId: res.data.post_id || res.data.id };
+    return { postId: res.data.id };
+  } catch (err) {
+    throw new Error(extractMetaErrorMessage(err));
   }
-
-  logger.info({ pageId }, 'publishing text post to Facebook Page');
-  const res = await axios.post(
-    `${META_GRAPH_BASE}/${pageId}/feed`,
-    {
-      message: text,
-      access_token: pageAccessToken,
-    },
-    { timeout: 30000 }
-  );
-  return { postId: res.data.id };
 }
 
 /**
@@ -106,37 +118,41 @@ async function postToInstagram({ caption, imageUrl }) {
 
   logger.info({ instagramAccountId }, 'creating Instagram media container');
 
-  // Step 1: Create media container
-  const containerRes = await axios.post(
-    `${META_GRAPH_BASE}/${instagramAccountId}/media`,
-    {
-      image_url: publicImageUrl,
-      caption: caption || '',
-      access_token: pageAccessToken,
-    },
-    { timeout: 30000 }
-  );
+  try {
+    // Step 1: Create media container
+    const containerRes = await axios.post(
+      `${META_GRAPH_BASE}/${instagramAccountId}/media`,
+      {
+        image_url: publicImageUrl,
+        caption: caption || '',
+        access_token: pageAccessToken,
+      },
+      { timeout: 30000 }
+    );
 
-  const containerId = containerRes.data.id;
-  if (!containerId) {
-    throw new Error('Failed to create Instagram media container — no container ID returned');
+    const containerId = containerRes.data.id;
+    if (!containerId) {
+      throw new Error('Failed to create Instagram media container — no container ID returned');
+    }
+
+    // Brief pause to allow Meta's crawler to download and process the image
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    // Step 2: Publish media container
+    logger.info({ instagramAccountId, containerId }, 'publishing Instagram media container');
+    const publishRes = await axios.post(
+      `${META_GRAPH_BASE}/${instagramAccountId}/media_publish`,
+      {
+        creation_id: containerId,
+        access_token: pageAccessToken,
+      },
+      { timeout: 30000 }
+    );
+
+    return { postId: publishRes.data.id };
+  } catch (err) {
+    throw new Error(extractMetaErrorMessage(err));
   }
-
-  // Brief pause to allow Meta's crawler to download and process the image
-  await new Promise((resolve) => setTimeout(resolve, 3000));
-
-  // Step 2: Publish media container
-  logger.info({ instagramAccountId, containerId }, 'publishing Instagram media container');
-  const publishRes = await axios.post(
-    `${META_GRAPH_BASE}/${instagramAccountId}/media_publish`,
-    {
-      creation_id: containerId,
-      access_token: pageAccessToken,
-    },
-    { timeout: 30000 }
-  );
-
-  return { postId: publishRes.data.id };
 }
 
 module.exports = {

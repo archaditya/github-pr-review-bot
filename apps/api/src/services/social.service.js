@@ -352,9 +352,13 @@ async function publishAll(userId, postIds) {
       }
       results.push({ id: post.id, platform: post.platform, status: 'published', postUrl });
     } catch (err) {
-      logger.error({ err: err.message, postId: post.id, platform: post.platform }, 'failed to publish social post');
-      await post.update({ status: 'failed', error: err.message });
-      results.push({ id: post.id, platform: post.platform, status: 'failed', error: err.message });
+      const detailedError = err.response?.data?.error?.message || err.message;
+      logger.error(
+        { err: detailedError, apiResponse: err.response?.data, postId: post.id, platform: post.platform },
+        'failed to publish social post'
+      );
+      await post.update({ status: 'failed', error: detailedError });
+      results.push({ id: post.id, platform: post.platform, status: 'failed', error: detailedError });
     }
   }
 
