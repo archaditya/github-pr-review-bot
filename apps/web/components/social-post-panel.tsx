@@ -8,6 +8,7 @@ import {
   useGenerateSocialDrafts,
   useUpdateSocialDraft,
   usePublishAllPosts,
+  usePublishSinglePost,
 } from '@/hooks/use-social-posts';
 
 interface SocialPostPanelProps {
@@ -19,18 +20,19 @@ export function SocialPostPanel({ pullRequestId }: SocialPostPanelProps) {
   const generateDrafts = useGenerateSocialDrafts();
   const updateDraft = useUpdateSocialDraft();
   const publishAll = usePublishAllPosts();
+  const publishSingle = usePublishSinglePost();
 
   const hasDrafts = posts && posts.length > 0;
-  const draftPosts = posts?.filter((p) => p.status === 'draft') || [];
+  const publishablePosts = posts?.filter((p) => p.status === 'draft' || p.status === 'failed') || [];
   const allPublished = hasDrafts && posts.every((p) => p.status === 'published');
-  const canPublish = draftPosts.length > 0;
+  const canPublish = publishablePosts.length > 0;
 
   function handleGenerate() {
     generateDrafts.mutate({ pullRequestId });
   }
 
   function handlePublishBoth() {
-    const ids = draftPosts.map((p) => p.id);
+    const ids = publishablePosts.map((p) => p.id);
     if (ids.length > 0) {
       publishAll.mutate({ postIds: ids });
     }
@@ -120,6 +122,8 @@ export function SocialPostPanel({ pullRequestId }: SocialPostPanelProps) {
               onUpdateText={(editedText) => updateDraft.mutate({ id: post.id, editedText })}
               onUpdateImage={(imageUrl) => updateDraft.mutate({ id: post.id, imageUrl })}
               isUpdating={updateDraft.isPending}
+              onPublish={() => publishSingle.mutate(post.id)}
+              isPublishing={publishSingle.isPending && publishSingle.variables === post.id}
             />
           ))}
         </div>
