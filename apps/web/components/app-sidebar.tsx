@@ -98,7 +98,7 @@ export function AppSidebar() {
                 ? 'bg-primary/10 text-primary'
                 : 'text-muted-foreground hover:bg-accent hover:text-foreground',
             )}
-            title="Settings & BYOK"
+            title="Settings"
           >
             <Sliders className="h-4 w-4 shrink-0" />
             {!sidebarCollapsed && <span>Settings</span>}

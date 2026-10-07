@@ -184,22 +184,14 @@ async function generateStandalone(userId, { input, repoContext, imageUrl }) {
   const voice = repoContext ? getRepoVoice(repoContext) : REPO_VOICE.default;
 
   const user = await db.User.findByPk(userId);
-  const userKey = await settingsService.getDecryptedOpenAiKey(userId);
-  if (!userKey) {
-    throw new ValidationError(
-      'An OpenAI API key is required. Please configure your personal OpenAI API Key under Settings > AI Engine (BYOK).'
-    );
+  let userKey = null;
+  try {
+    userKey = await settingsService.getDecryptedOpenAiKey(userId);
+  } catch (err) {
+    logger.warn({ err: err.message }, 'Failed to fetch user OpenAI key, falling back to system key');
   }
-
-  // Enforce monthly quota for non-admin users
-  if (user && user.role !== 'admin') {
-    const quota = user.features?.social_monthly_quota ?? 20;
-    const currentUsage = user.usage?.post_count || 0;
-    if (quota > 0 && currentUsage >= quota) {
-      throw new ValidationError(
-        `Monthly social post quota of ${quota} reached. Please contact admin to increase your limit.`
-      );
-    }
+  if (!userKey) {
+    userKey = process.env.OPENAI_API_KEY || null;
   }
 
   const drafts = await aiService.generateSocialDrafts({

@@ -217,21 +217,6 @@ export default function CreatePostPage() {
         </p>
       </div>
 
-      {user && user.role !== 'admin' && !user.hasOpenaiKey && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-400 font-mono">
-          <div className="flex items-center gap-2.5">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
-            <span>
-              You haven&apos;t configured your personal OpenAI API Key yet. Bring-Your-Own-Key is required to generate drafts.
-            </span>
-          </div>
-          <Link href="/settings">
-            <Button size="sm" variant="outline" className="text-xs h-7 border-amber-500/30 text-amber-400 hover:bg-amber-500/20 whitespace-nowrap">
-              Configure Key
-            </Button>
-          </Link>
-        </div>
-      )}
 
       {/* Input Section */}
       <Card className="bg-card/60">
@@ -505,7 +490,7 @@ export default function CreatePostPage() {
           {/* Generation error */}
           {generateDrafts.isError && (
             <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive font-mono">
-              Failed to generate: {generateDrafts.error?.message || 'Unknown error'}
+              Failed to generate: {(generateDrafts.error as any)?.response?.data?.error?.message || (generateDrafts.error as any)?.response?.data?.message || generateDrafts.error?.message || 'Unknown error'}
             </div>
           )}
         </CardContent>

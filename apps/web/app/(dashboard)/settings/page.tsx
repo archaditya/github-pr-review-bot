@@ -8,28 +8,13 @@ import {
   Plus,
   Trash2,
   Ban,
-  ShieldCheck,
-  AlertTriangle,
-  Cpu,
   Share2,
-  Sliders,
-  CheckCircle2,
-  XCircle,
-  Eye,
-  EyeOff,
-  Sparkles,
-  Info,
-  DollarSign,
-  BookOpen,
   ExternalLink,
   HelpCircle,
 } from 'lucide-react';
 import { useApiKeys, useCreateApiKey, useRevokeApiKey, useDeleteApiKey } from '@/hooks/use-api-keys';
 import {
   useSettings,
-  useSaveAiKey,
-  useRemoveAiKey,
-  useTestAiKey,
   useUpdatePreferences,
 } from '@/hooks/use-settings';
 import { useCurrentUser } from '@/hooks/use-current-user';
@@ -37,34 +22,21 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/empty-state';
 
-type TabType = 'byok' | 'platforms' | 'entitlements' | 'appkeys';
+type TabType = 'platforms' | 'appkeys';
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('byok');
+  const [activeTab, setActiveTab] = useState<TabType>('platforms');
 
   // User & Settings
   const { data: currentUser } = useCurrentUser();
   const { data: settings, isLoading: settingsLoading } = useSettings();
-  const saveAiKey = useSaveAiKey();
-  const removeAiKey = useRemoveAiKey();
-  const testAiKey = useTestAiKey();
   const updatePreferences = useUpdatePreferences();
 
-  // App Keys (Tab 4)
+  // App Keys (Tab 2)
   const { data: apiKeys, isLoading: apiKeysLoading } = useApiKeys();
   const createApiKey = useCreateApiKey();
   const revokeApiKey = useRevokeApiKey();
   const deleteApiKey = useDeleteApiKey();
-
-  // BYOK State
-  const [inputKey, setInputKey] = useState('');
-  const [showKey, setShowKey] = useState(false);
-  const [testStatus, setTestStatus] = useState<{
-    tested: boolean;
-    valid?: boolean;
-    error?: string;
-    modelCount?: number;
-  } | null>(null);
 
   // Platform Preferences State
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([
@@ -96,41 +68,6 @@ export default function SettingsPage() {
       setPlatformsInitialized(true);
     }
   }, [settings, platformsInitialized]);
-
-  // Handlers for BYOK
-  async function handleTestKey() {
-    setTestStatus(null);
-    try {
-      const res = await testAiKey.mutateAsync(inputKey.trim() || undefined);
-      setTestStatus({
-        tested: true,
-        valid: res.valid,
-        error: res.error,
-        modelCount: res.modelCount,
-      });
-    } catch (err: any) {
-      setTestStatus({
-        tested: true,
-        valid: false,
-        error: err?.response?.data?.error?.message || err.message,
-      });
-    }
-  }
-
-  async function handleSaveKey(e: React.FormEvent) {
-    e.preventDefault();
-    if (!inputKey.trim()) return;
-    await saveAiKey.mutateAsync(inputKey.trim());
-    setInputKey('');
-    setTestStatus(null);
-  }
-
-  async function handleRemoveKey() {
-    if (confirm('Are you sure you want to remove your configured OpenAI API key?')) {
-      await removeAiKey.mutateAsync();
-      setTestStatus(null);
-    }
-  }
 
   // Handlers for Platform Preferences
   function togglePlatform(platform: string) {
@@ -183,38 +120,18 @@ export default function SettingsPage() {
     }
   }
 
-  const isSuperAdmin = currentUser?.role === 'admin';
-  const hasConfiguredKey = Boolean(settings?.hasOpenaiKey);
-
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       {/* Header */}
       <div>
-        <h1 className="font-mono text-2xl font-bold tracking-tight">Settings & Engine Control</h1>
+        <h1 className="font-mono text-2xl font-bold tracking-tight">Settings & Controls</h1>
         <p className="text-sm text-muted-foreground">
-          Manage your Bring-Your-Own-Key (BYOK) OpenAI credentials, social platform opt-ins, quotas, and security keys.
+          Manage your social platform opt-ins, posting preferences, and app security keys.
         </p>
       </div>
 
       {/* Tabs Bar */}
       <div className="flex border-b border-border gap-2 pb-px overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('byok')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-            activeTab === 'byok'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Cpu className="h-4 w-4" />
-          <span>AI Engine (BYOK)</span>
-          {hasConfiguredKey ? (
-            <span className="h-2 w-2 rounded-full bg-emerald-500" title="Key Active" />
-          ) : (
-            <span className="h-2 w-2 rounded-full bg-amber-500" title="No Key" />
-          )}
-        </button>
-
         <button
           onClick={() => setActiveTab('platforms')}
           className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
@@ -225,18 +142,6 @@ export default function SettingsPage() {
         >
           <Share2 className="h-4 w-4" />
           <span>Platform Opt-in</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('entitlements')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-            activeTab === 'entitlements'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <ShieldCheck className="h-4 w-4" />
-          <span>My Entitlements & Quotas</span>
         </button>
 
         <button
@@ -252,180 +157,14 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      {/* Tab 1: AI Provider (BYOK) */}
-      {activeTab === 'byok' && (
-        <div className="space-y-6">
-          <div className="rounded-lg border border-border bg-card p-6 space-y-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-semibold">OpenAI API Key (BYOK)</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Your key is stored encrypted at rest using AES-256-GCM and never logged or exposed.
-                </p>
-              </div>
-              <div>
-                {hasConfiguredKey ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 font-mono text-xs font-medium text-emerald-500 border border-emerald-500/20">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    Key Configured ({settings?.maskedOpenaiKey})
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1 font-mono text-xs font-medium text-amber-500 border border-amber-500/20">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    No BYOK Key Set
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {isSuperAdmin && (
-              <div className="rounded-md border border-blue-500/20 bg-blue-500/5 p-4 flex gap-3 text-xs text-blue-400">
-                <Info className="h-4 w-4 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-semibold">Super Admin Notice:</span> Your account has <strong>managed provider mode</strong> enabled. Even without setting a custom key here, the platform seamlessly uses your server environment OpenAI key.
-                </div>
-              </div>
-            )}
-
-            {!isSuperAdmin && !hasConfiguredKey && (
-              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-4 flex gap-3 text-xs text-amber-400">
-                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-semibold">Action Required:</span> External users operate strictly under Bring-Your-Own-Key (BYOK). Please paste your OpenAI API Key (<code className="bg-black/30 px-1 py-0.5 rounded">sk-...</code>) below to unlock code reviews, repo chats, and social post creation without server limits.
-                </div>
-              </div>
-            )}
-
-            {/* Step-by-Step OpenAI Key Guide */}
-            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-primary font-medium text-sm">
-                  <BookOpen className="h-4 w-4 shrink-0" />
-                  <span>How to Get Your OpenAI API Key</span>
-                </div>
-                <a
-                  href="https://platform.openai.com/api-keys"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-mono bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded w-fit"
-                >
-                  <span>Open OpenAI Console</span>
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-muted-foreground pt-1">
-                <div className="rounded-md bg-background/80 p-3 border border-border/60 space-y-1">
-                  <p className="font-semibold text-foreground">1. Sign In & Add Credits</p>
-                  <p>
-                    Log in at <a href="https://platform.openai.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">platform.openai.com</a>. Under <strong>Settings &gt; Billing</strong>, make sure you have at least $5 pre-funded credit balance.
-                  </p>
-                </div>
-                <div className="rounded-md bg-background/80 p-3 border border-border/60 space-y-1">
-                  <p className="font-semibold text-foreground">2. Create New Secret Key</p>
-                  <p>
-                    Navigate to <strong>Dashboard &gt; API keys</strong>. Click <strong>+ Create new secret key</strong> and give it a name like <code className="text-primary font-mono">pr-bot</code>.
-                  </p>
-                </div>
-                <div className="rounded-md bg-background/80 p-3 border border-border/60 space-y-1">
-                  <p className="font-semibold text-foreground">3. Copy & Test Here</p>
-                  <p>
-                    Copy the secret key (<code className="text-primary font-mono">sk-proj-...</code>). Paste it in the input below and click <strong>Test Key Validity</strong> to verify before saving.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Key Input Form */}
-            <form onSubmit={handleSaveKey} className="space-y-4 pt-2">
-              <div>
-                <label className="block text-xs font-medium text-foreground mb-1.5">
-                  {hasConfiguredKey ? 'Replace Existing OpenAI API Key' : 'Enter OpenAI API Key'}
-                </label>
-                <div className="relative">
-                  <input
-                    type={showKey ? 'text' : 'password'}
-                    value={inputKey}
-                    onChange={(e) => setInputKey(e.target.value)}
-                    placeholder="sk-proj-..."
-                    className="w-full rounded-md border border-border bg-background px-3 py-2 pr-10 font-mono text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowKey(!showKey)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Real-time test results */}
-              {testStatus && (
-                <div
-                  className={`rounded-md p-3 text-xs flex items-center justify-between border ${
-                    testStatus.valid
-                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-                      : 'border-red-500/30 bg-red-500/10 text-red-400'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    {testStatus.valid ? (
-                      <CheckCircle2 className="h-4 w-4 shrink-0" />
-                    ) : (
-                      <XCircle className="h-4 w-4 shrink-0" />
-                    )}
-                    <span>
-                      {testStatus.valid
-                        ? `Valid OpenAI Key! Connected successfully (${testStatus.modelCount} models available).`
-                        : `Key verification failed: ${testStatus.error}`}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center gap-3">
-                <Button
-                  type="submit"
-                  disabled={!inputKey.trim() || saveAiKey.isPending}
-                >
-                  {saveAiKey.isPending ? 'Encrypting & Saving...' : 'Save & Encrypt Key'}
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={(!inputKey.trim() && !hasConfiguredKey) || testAiKey.isPending}
-                  onClick={handleTestKey}
-                >
-                  {testAiKey.isPending ? 'Verifying with OpenAI...' : 'Test Key Validity'}
-                </Button>
-
-                {hasConfiguredKey && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="text-red-400 hover:bg-red-500/10 hover:text-red-300 ml-auto"
-                    onClick={handleRemoveKey}
-                    disabled={removeAiKey.isPending}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1.5" />
-                    Remove Key
-                  </Button>
-                )}
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Tab 2: Platform Preferences */}
+      {/* Tab 1: Platform Preferences */}
       {activeTab === 'platforms' && (
         <div className="space-y-6">
           <div className="rounded-lg border border-border bg-card p-6 space-y-6">
             <div>
               <h2 className="text-base font-semibold">Social Platform Opt-In</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Choose which channels the AI Studio generates drafts for. Opt out of costly platforms to save on API usage.
+                Choose which channels the AI Studio generates drafts for. Opt out of specific platforms to streamline generation.
               </p>
             </div>
 
@@ -445,11 +184,11 @@ export default function SettingsPage() {
                     <span className="text-sm font-semibold">LinkedIn</span>
                   </div>
                   <span className="rounded bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-emerald-400 border border-emerald-500/20">
-                    FREE
+                    ACTIVE
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Official LinkedIn Community Management API. Unlimited text & technical diagram posts.
+                  Posts to your personal LinkedIn profile via official v2 UGC API.
                 </p>
                 <div className="mt-3 flex items-center gap-2 text-xs font-medium">
                   <input
@@ -473,15 +212,15 @@ export default function SettingsPage() {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2.5">
-                    <span className="font-mono text-base font-bold text-pink-400">IG</span>
-                    <span className="text-sm font-semibold">Instagram Business</span>
+                    <span className="font-mono text-base font-bold text-pink-400">ig</span>
+                    <span className="text-sm font-semibold">Instagram</span>
                   </div>
                   <span className="rounded bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-emerald-400 border border-emerald-500/20">
-                    FREE
+                    ACTIVE
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Meta Graph API. Requires high-res generated diagrams/photos and engineering captions.
+                  Publishes photo container with engineering caption via Meta Graph API.
                 </p>
                 <div className="mt-3 flex items-center gap-2 text-xs font-medium">
                   <input
@@ -499,21 +238,21 @@ export default function SettingsPage() {
                 onClick={() => togglePlatform('facebook')}
                 className={`cursor-pointer rounded-lg border p-4 transition-all ${
                   selectedPlatforms.includes('facebook')
-                    ? 'border-blue-600 bg-blue-600/5'
+                    ? 'border-indigo-500 bg-indigo-500/5'
                     : 'border-border bg-background opacity-60'
                 }`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2.5">
-                    <span className="font-mono text-base font-bold text-blue-500">fb</span>
+                    <span className="font-mono text-base font-bold text-indigo-400">fb</span>
                     <span className="text-sm font-semibold">Facebook Page</span>
                   </div>
                   <span className="rounded bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-emerald-400 border border-emerald-500/20">
-                    FREE
+                    ACTIVE
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Meta Graph API for developer & brand pages. High visibility with direct image hosting.
+                  Publishes feed update with media attachment directly to your connected Page.
                 </p>
                 <div className="mt-3 flex items-center gap-2 text-xs font-medium">
                   <input
@@ -531,7 +270,7 @@ export default function SettingsPage() {
                 onClick={() => togglePlatform('x')}
                 className={`cursor-pointer rounded-lg border p-4 transition-all ${
                   selectedPlatforms.includes('x')
-                    ? 'border-amber-500 bg-amber-500/5'
+                    ? 'border-neutral-500 bg-neutral-500/5'
                     : 'border-border bg-background opacity-60'
                 }`}
               >
@@ -540,13 +279,9 @@ export default function SettingsPage() {
                     <span className="font-mono text-base font-bold text-foreground">𝕏</span>
                     <span className="text-sm font-semibold">X (Twitter)</span>
                   </div>
-                  <span className="rounded bg-amber-500/20 px-2 py-0.5 font-mono text-[10px] font-semibold text-amber-400 border border-amber-500/30 flex items-center gap-1">
-                    <DollarSign className="h-3 w-3" />
-                    PAID API TIER
-                  </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  X API Basic requires $100/mo or pay-per-use credits. Opt out if you prefer to publish only to the 3 free channels.
+                  Posts tweets directly via X API v2.
                 </p>
                 <div className="mt-3 flex items-center gap-2 text-xs font-medium">
                   <input
@@ -555,67 +290,7 @@ export default function SettingsPage() {
                     checked={selectedPlatforms.includes('x')}
                     className="rounded border-border text-primary"
                   />
-                  <span>{selectedPlatforms.includes('x') ? 'Enabled' : 'Disabled (Cost Saver)'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Social Media API Keys & Setup Guide */}
-            <div className="rounded-lg border border-border bg-card/60 p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <HelpCircle className="h-4 w-4 text-primary" />
-                  <span>How to Get Social Media Developer Keys &amp; Accounts</span>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-muted-foreground">
-                {/* LinkedIn Guide */}
-                <div className="rounded-md border border-blue-500/20 bg-blue-500/5 p-3.5 space-y-2">
-                  <div className="flex items-center justify-between font-semibold text-blue-400">
-                    <span>LinkedIn API (Free)</span>
-                    <a href="https://www.linkedin.com/developers/apps" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] hover:underline">
-                      Developer Portal <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                  <p>1. Go to LinkedIn Developers and click <strong>Create App</strong>.</p>
-                  <p>2. Under <strong>Products</strong>, request <em>Share on LinkedIn</em>.</p>
-                  <p>3. Generate an OAuth access token with scope <code className="text-blue-300 font-mono">w_member_social</code>.</p>
-                </div>
-
-                {/* Meta Guide */}
-                <div className="rounded-md border border-pink-500/20 bg-pink-500/5 p-3.5 space-y-2">
-                  <div className="flex items-center justify-between font-semibold text-pink-400">
-                    <span>Instagram &amp; Facebook (Free)</span>
-                    <a href="https://developers.facebook.com/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] hover:underline">
-                      Meta Portal <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                  <p>1. Create an app of type <strong>Business</strong> on Meta for Developers.</p>
-                  <p>2. Create a Facebook Page and link your Instagram Professional account to that Page.</p>
-                  <p>3. Generate a Page Access Token with permissions: <code className="text-pink-300 font-mono">pages_manage_posts, instagram_content_publish</code>.</p>
-                </div>
-
-                {/* X Guide */}
-                <div className="rounded-md border border-amber-500/20 bg-amber-500/5 p-3.5 space-y-2">
-                  <div className="flex items-center justify-between font-semibold text-amber-400">
-                    <span>X / Twitter (Paid Tier)</span>
-                    <a href="https://developer.x.com/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] hover:underline">
-                      X Developer Portal <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                  <p>1. Sign in to X Developer Portal and create a Project.</p>
-                  <p>2. Requires the <strong>Basic Tier</strong> ($100/mo) for write access to post tweets via API.</p>
-                  <p>3. Generate API Key, API Secret, Access Token, and Access Secret with Read &amp; Write permissions.</p>
-                </div>
-
-                {/* Managed Posting Notice */}
-                <div className="rounded-md border border-border bg-background/50 p-3.5 space-y-2">
-                  <div className="font-semibold text-foreground">
-                    Admin Managed Posting
-                  </div>
-                  <p>
-                    Don&apos;t want to set up your own social developer accounts? Contact the administrator (Aditya) to post directly through the platform&apos;s verified developer integrations.
-                  </p>
+                  <span>{selectedPlatforms.includes('x') ? 'Enabled' : 'Disabled'}</span>
                 </div>
               </div>
             </div>
@@ -629,94 +304,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Tab 3: My Entitlements & Quotas */}
-      {activeTab === 'entitlements' && (
-        <div className="space-y-6">
-          <div className="rounded-lg border border-border bg-card p-6 space-y-6">
-            <div>
-              <h2 className="text-base font-semibold">Account Tier & Feature Allocations</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Features allocated to your account by the system administrator.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="rounded-md border border-border bg-background p-4">
-                <span className="text-xs text-muted-foreground uppercase font-mono">Role</span>
-                <p className="text-lg font-bold font-mono text-primary mt-1 capitalize">
-                  {currentUser?.role || 'User'}
-                </p>
-              </div>
-
-              <div className="rounded-md border border-border bg-background p-4">
-                <span className="text-xs text-muted-foreground uppercase font-mono">Status</span>
-                <p className="text-lg font-bold font-mono text-emerald-400 mt-1 capitalize">
-                  {currentUser?.status || 'Active'}
-                </p>
-              </div>
-
-              <div className="rounded-md border border-border bg-background p-4">
-                <span className="text-xs text-muted-foreground uppercase font-mono">AI Mode</span>
-                <p className="text-lg font-bold font-mono text-foreground mt-1 uppercase">
-                  {settings?.features?.ai_provider_mode || 'BYOK_ONLY'}
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
-                Granted Capabilities
-              </h3>
-
-              <div className="divide-y divide-border rounded-lg border border-border bg-background">
-                <div className="flex items-center justify-between p-3.5 text-sm">
-                  <div>
-                    <p className="font-medium">Automated PR Code Reviews</p>
-                    <p className="text-xs text-muted-foreground">Bot performs automated inline findings and diff checks on PRs</p>
-                  </div>
-                  <span className={`font-mono text-xs font-semibold px-2 py-0.5 rounded ${
-                    settings?.features?.can_review_prs !== false
-                      ? 'bg-emerald-500/10 text-emerald-400'
-                      : 'bg-red-500/10 text-red-400'
-                  }`}>
-                    {settings?.features?.can_review_prs !== false ? 'ALLOWED' : 'DISABLED'}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between p-3.5 text-sm">
-                  <div>
-                    <p className="font-medium">Interactive Repository Chat</p>
-                    <p className="text-xs text-muted-foreground">Deep graph-grounded question answering over codebase</p>
-                  </div>
-                  <span className={`font-mono text-xs font-semibold px-2 py-0.5 rounded ${
-                    settings?.features?.can_repo_chat !== false
-                      ? 'bg-emerald-500/10 text-emerald-400'
-                      : 'bg-red-500/10 text-red-400'
-                  }`}>
-                    {settings?.features?.can_repo_chat !== false ? 'ALLOWED' : 'DISABLED'}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between p-3.5 text-sm">
-                  <div>
-                    <p className="font-medium">Social Media Studio</p>
-                    <p className="text-xs text-muted-foreground">Generate multi-platform technical engineering announcements</p>
-                  </div>
-                  <span className={`font-mono text-xs font-semibold px-2 py-0.5 rounded ${
-                    settings?.features?.can_social_studio !== false
-                      ? 'bg-emerald-500/10 text-emerald-400'
-                      : 'bg-red-500/10 text-red-400'
-                  }`}>
-                    {settings?.features?.can_social_studio !== false ? 'ALLOWED' : 'DISABLED'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Tab 4: App Keys & Devices */}
+      {/* Tab 2: App Keys & Devices */}
       {activeTab === 'appkeys' && (
         <div className="space-y-8">
           {/* Quick Browser Connect */}
@@ -759,7 +347,7 @@ export default function SettingsPage() {
               />
               <Button type="submit" disabled={!newKeyName.trim() || createApiKey.isPending}>
                 <Plus className="mr-1.5 h-4 w-4" />
-                Create Key
+                {createApiKey.isPending ? 'Generating...' : 'Create Key'}
               </Button>
             </form>
 

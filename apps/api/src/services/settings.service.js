@@ -120,22 +120,18 @@ async function updatePreferences(userId, { preferences, allowedSocialPlatforms }
  * Only called by server-side workers/dispatchers (never sent to client).
  */
 async function getDecryptedOpenAiKey(userId) {
-  const user = await db.User.findByPk(userId, {
-    attributes: ['id', 'role', 'openaiApiKeyEncrypted', 'features'],
-  });
+  if (userId) {
+    const user = await db.User.findByPk(userId, {
+      attributes: ['id', 'role', 'openaiApiKeyEncrypted', 'features'],
+    });
 
-  if (!user) return null;
-
-  if (user.openaiApiKeyEncrypted) {
-    return decrypt(user.openaiApiKeyEncrypted);
+    if (user?.openaiApiKeyEncrypted) {
+      return decrypt(user.openaiApiKeyEncrypted);
+    }
   }
 
-  // Admin users can fall back to system key in 'managed' mode
-  if (user.role === 'admin' || user.features?.ai_provider_mode === 'managed') {
-    return process.env.OPENAI_API_KEY || null;
-  }
-
-  return null;
+  // Fall back to system key configured in server environment
+  return process.env.OPENAI_API_KEY || null;
 }
 
 module.exports = {
