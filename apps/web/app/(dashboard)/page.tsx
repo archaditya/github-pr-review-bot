@@ -21,16 +21,27 @@ export default function RepositoriesPage() {
             Every repository archadi-bot has been installed on.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => syncRepos.mutate()}
-          disabled={syncRepos.isPending}
-          className="flex items-center gap-1.5 font-mono text-xs"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${syncRepos.isPending ? 'animate-spin' : ''}`} />
-          {syncRepos.isPending ? 'Syncing...' : 'Sync Repositories'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="default" size="sm" className="font-mono text-xs">
+            <a
+              href="https://github.com/apps/archadi-pr-review-bot/installations/new"
+              target="_blank"
+              rel="noreferrer"
+            >
+              + Add / Manage Repos
+            </a>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => syncRepos.mutate()}
+            disabled={syncRepos.isPending}
+            className="flex items-center gap-1.5 font-mono text-xs"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${syncRepos.isPending ? 'animate-spin' : ''}`} />
+            {syncRepos.isPending ? 'Syncing...' : 'Sync Repositories'}
+          </Button>
+        </div>
       </div>
 
       {isLoading && (

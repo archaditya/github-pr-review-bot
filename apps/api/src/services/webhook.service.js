@@ -243,7 +243,18 @@ async function handleIssueCommentEvent(payload) {
  * Emits indexing events for each newly-added repository.
  */
 async function handleInstallationRepositoriesEvent(payload) {
-  const { action, installation, repositories_added: reposAdded } = payload;
+  const { action, installation, repositories_added: reposAdded, repositories_removed: reposRemoved } = payload;
+
+  if (action === 'removed' && reposRemoved?.length) {
+    for (const repo of reposRemoved) {
+      await db.Repository.update(
+        { isActive: false },
+        { where: { githubRepoId: repo.id } }
+      );
+      logger.info({ repoId: repo.id, fullName: repo.full_name }, 'repository marked inactive (removed from GitHub App)');
+    }
+    return reposRemoved.length;
+  }
 
   if (action !== 'added' || !reposAdded?.length) return null;
 
